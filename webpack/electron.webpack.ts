@@ -20,6 +20,10 @@ const config: Configuration = {
           loader: "ts-loader",
         },
       },
+      {
+        test: /\.css$/i,
+        use: ["style-loader", "css-loader"],
+      },
     ],
   },
   node: {

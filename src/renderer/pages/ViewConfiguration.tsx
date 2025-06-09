@@ -1,17 +1,14 @@
 // src/renderer/App.tsx
 import React, { useState } from 'react';
-import {
-  AppBar,
-  Toolbar, Typography, Menu, MenuItem,
-  Button, Box, InputBase, Container,
+import {  
+  Typography, Menu, MenuItem,
+  Box, InputBase, Container,
   Stack, Breadcrumbs, Paper, Dialog,
   DialogTitle, DialogContent, IconButton, Divider,
-  Tooltip, TextField, CssBaseline, ThemeProvider
+  Tooltip, TextField
 } from '@mui/material';
-import GitBranchIcon from '@mui/icons-material/CallSplit';
 import ExpandIcon from '@mui/icons-material/ZoomOutMap';
 import InfoIcon from '@mui/icons-material/Info';
-import theme from "../theme";
 
 const mockData = [
   {
@@ -30,16 +27,6 @@ export default function App(): JSX.Element {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogValue, setDialogValue] = useState('');
 
-  const handleMenuOpen = (event: React.MouseEvent<HTMLButtonElement>, name: string) => {
-    setAnchorEl(event.currentTarget);
-    setMenu(name);
-  };
-
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-    setMenu(null);
-  };
-
   const handleExpandClick = (value: string) => {
     setDialogValue(value);
     setDialogOpen(true);
@@ -49,34 +36,8 @@ export default function App(): JSX.Element {
     setDialogOpen(false);
   };
 
-  const renderMenu = (name: string, items: string[]) => (
-    <Menu anchorEl={anchorEl} open={menu === name} onClose={handleMenuClose}>
-      {items.map((item) => (
-        <MenuItem key={item} onClick={handleMenuClose}>{item}</MenuItem>
-      ))}
-    </Menu>
-  );
-
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <Box display="flex" flexDirection="column" minHeight="100vh">
-        <AppBar position="static">
-          <Toolbar>
-            <Typography variant="h6" sx={{ flexGrow: 1 }}>
-              Achab Profile Manager
-            </Typography>
-            {['File', 'Validate', 'Tools', 'Git'].map((label) => (
-              <Box key={label}>
-                <Button color="inherit" onClick={(e) => handleMenuOpen(e, label)}>
-                  {label}
-                </Button>
-                {renderMenu(label, label === 'File' ? ['Open', 'Save', 'Settings', 'Exit'] : ['Option 1', 'Option 2'])}
-              </Box>
-            ))}
-          </Toolbar>
-        </AppBar>
-
+      <Box display="flex" flexDirection="column">
         <Container sx={{ mt: 4, mb: 4 }}>
           <Stack spacing={2}>
             {mockData.map((item, index) => (
@@ -129,13 +90,7 @@ export default function App(): JSX.Element {
               <MenuItem value="chiave_nuova_2">Chiave Nuova 2</MenuItem>
             </TextField>
           </Box>
-
         </Container>
-
-        <Box component="footer" sx={{ mt: 'auto', py: 1, px: 2, bgcolor: '#f5f5f5', display: 'flex', alignItems: 'center', gap: 1 }}>
-          <GitBranchIcon fontSize="small" />
-          <Typography variant="body2">BranchCorrente</Typography>
-        </Box>
 
         <Dialog open={dialogOpen} onClose={handleDialogClose} fullWidth maxWidth="sm">
           <DialogTitle>Valore esteso</DialogTitle>
@@ -145,6 +100,5 @@ export default function App(): JSX.Element {
           </DialogContent>
         </Dialog>
       </Box>
-    </ThemeProvider>
   );
 }
