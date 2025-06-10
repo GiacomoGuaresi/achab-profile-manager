@@ -83,7 +83,7 @@ function buildProfileGraph(profilesData) {
       const node = {
         id: profile.name,
         data: { label: profile.name },
-        position: { x: 0, y: index * 100 } // Posizione iniziale arbitraria (puoi usare un algoritmo di layout)
+        position: { x: Math.random() * 5000, y: Math.random() * 5000 } 
       };
 
       nodes.push(node);
@@ -101,7 +101,11 @@ function buildProfileGraph(profilesData) {
         id: `e-${profile.inherits}-${profile.name}`,
         source: profile.inherits,
         target: profile.name,
-        type: 'smoothstep' // o 'default', 'step', ecc.
+        type: 'bezier', // o 'default', 'step', ecc.
+        markerEnd: {
+          type: 'arrowclosed', // Aggiungi la freccia alla fine dell'arco
+          color: '#009688', // Colore della freccia (opzionale, usa il tuo primary color)
+        },
       });
     }
   });

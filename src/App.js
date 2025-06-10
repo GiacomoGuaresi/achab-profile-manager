@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   AppBar,
   Toolbar,
@@ -8,60 +8,199 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  // Rimuovi List, ListItem, ListItemText se non più usati
+  Box,
+  Drawer, // Imported for the information panel
+  IconButton, // Imported for the close button in the panel
 } from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close'; // Icon for the close button
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 
+import ReactFlow, { MiniMap, Controls, Background, useNodesState, useEdgesState, addEdge } from 'reactflow';
+import 'reactflow/dist/style.css';
+
+import Elk from 'elkjs/lib/elk.bundled.js';
+
+// Initialize ELK for graph layouting
+const elk = new Elk({
+  defaultLayoutOptions: {
+    'elk.algorithm': 'layered', // Use a layered algorithm for hierarchical graphs
+    'elk.direction': 'DOWN', // Layout direction from top to bottom
+    'elk.spacing.nodeNode': '75', // Spacing between nodes
+    'elk.spacing.edgeNode': '50', // Spacing between edges and nodes
+    'elk.layered.spacing.nodeNodeBetweenLayers': '100', // Spacing between nodes in different layers
+    'elk.spacing.componentComponent': '200', // Spacing between disconnected components
+    'elk.componentLayout.strategy': 'MULTI_LEVEL_SIMPLEX', // Strategy for component layout
+    'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX', // Strategy for node placement within layers
+  },
+});
+
+// Define a custom Material-UI theme
 const customTheme = createTheme({
   palette: {
     primary: {
-      main: '#009688',
+      main: '#009688', // Primary color for AppBar and accents
+    },
+    background: {
+      default: '#f5f5f5', // Light gray background to make the graph stand out
+    },
+  },
+  typography: {
+    fontFamily: 'Inter, sans-serif', // Use Inter font
+  },
+  components: {
+    MuiButtonBase: {
+      defaultProps: {
+        disableRipple: true, // Optional: disable ripple effect for a cleaner look
+      },
+    },
+    MuiPaper: {
+      styleOverrides: {
+        root: {
+          borderRadius: 8, // Apply rounded corners to all Paper-based components
+        },
+      },
+    },
+    MuiSelect: {
+      styleOverrides: {
+        root: {
+          borderRadius: 8, // Apply rounded corners to select input
+        },
+      },
     },
   },
 });
 
 const App = () => {
-  const [vendorFolders, setVendorFolders] = useState([]); // Cambiato da 'files' a 'vendorFolders'
-  const [selectedVendor, setSelectedVendor] = useState(''); // Stato per il vendor selezionato
-  const [profileGraph, setProfileGraph] = useState(null); // Nuovo stato per il grafo dei profili
+  // State for vendor folders retrieved from the API
+  const [vendorFolders, setVendorFolders] = useState([]);
+  // State for the currently selected vendor
+  const [selectedVendor, setSelectedVendor] = useState('');
+  // State for the profile graph data (nodes and edges)
+  const [profileGraph, setProfileGraph] = useState(null);
 
-  // ATTENZIONE: CAMBIA QUESTO PER IL TUO PERCORSO!
+  // ReactFlow states for nodes and edges, along with change handlers
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+
+  // State for the selected node information and panel visibility
+  const [selectedNodeInfo, setSelectedNodeInfo] = useState(null);
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
+
+  // Define the root path for profiles (Electron-specific)
   const profilesRootPath = 'C:\\Users\\guare\\source\\gingerRepos\\OrcaSlicer\\resources\\profiles';
 
+  // useEffect to fetch vendor folders on component mount
   useEffect(() => {
+    // Check if the Electron API is available
     if (window.api) {
-      // Inizialmente, ottieni solo i nomi delle cartelle dei vendor
       window.api.getVendorFolders(profilesRootPath)
         .then(folders => {
           setVendorFolders(folders);
         })
         .catch(err => {
-          console.error("Errore nel recupero delle cartelle dei vendor:", err);
-          setVendorFolders(["Errore nel caricamento delle cartelle. Controlla la console."]);
+          console.error("Error retrieving vendor folders:", err);
+          // Display an error message if API call fails
+          setVendorFolders(["Error loading folders. Check console."]);
         });
     } else {
-      console.warn("L'API 'window.api' non è disponibile. Sei in un browser o in un ambiente non Electron?");
-      setVendorFolders(["L'API per leggere i file non è disponibile."]);
+      console.warn("The 'window.api' API is not available. Are you in a browser or non-Electron environment?");
+      // Provide a fallback message if API is not available
+      setVendorFolders(["File reading API is not available."]);
+    }
+  }, []); // Empty dependency array ensures this runs once on mount
+
+  // Callback to calculate the layout of nodes and edges using ELK
+  const getLayoutedElements = useCallback(async (nodes, edges) => {
+    // Construct the graph object for ELK layouting
+    const graph = {
+      id: 'root',
+      children: nodes.map((node) => ({
+        ...node,
+        width: 150, // Fixed width for nodes for consistent layout
+        height: 40, // Fixed height for nodes
+      })),
+      edges: edges,
+    };
+
+    try {
+      // Perform layout calculation with ELK
+      const layoutedGraph = await elk.layout(graph);
+
+      // Map ELK's layouted nodes back to ReactFlow node format
+      const newNodes = layoutedGraph.children.map((node) => ({
+        ...node,
+        position: { x: node.x, y: node.y }, // Set position from ELK layout
+        // Add styling for rounded corners using Tailwind-like classes
+        className: 'rounded-lg shadow-md bg-white p-2 border border-gray-200 hover:bg-gray-100',
+      }));
+
+      // Map ELK's layouted edges back to ReactFlow edge format
+      const newEdges = layoutedGraph.edges.map(edge => ({
+        ...edge,
+        // Add arrow marker at the end of edges
+        markerEnd: {
+          type: 'arrowclosed',
+          color: customTheme.palette.primary.main, // Use theme primary color for arrows
+        },
+        style: {
+          strokeWidth: 2, // Thicker stroke for better visibility
+          stroke: '#333', // Dark gray stroke color
+        },
+      }));
+
+      return { nodes: newNodes, edges: newEdges };
+    } catch (error) {
+      console.error("Error calculating layout with ELK:", error);
+      return { nodes, edges }; // Return original nodes/edges on error
     }
   }, []);
 
+  // useEffect to apply layout whenever profileGraph changes
+  useEffect(() => {
+    if (profileGraph && !profileGraph.error) {
+      getLayoutedElements(profileGraph.nodes, profileGraph.edges).then(({ nodes: layoutedNodes, edges: layoutedEdges }) => {
+        setNodes(layoutedNodes); // Update ReactFlow nodes with layouted positions
+        setEdges(layoutedEdges); // Update ReactFlow edges
+      });
+    } else {
+      // Clear nodes and edges if there's no valid graph or an error
+      setNodes([]);
+      setEdges([]);
+    }
+  }, [profileGraph, getLayoutedElements]);
+
+  // Callback for connecting nodes in ReactFlow (not directly used by ELK layout)
+  const onConnect = useCallback((params) => setEdges((eds) => addEdge(params, eds)), [setEdges]);
+
+  // Handler for node clicks to open the info panel
+  const onNodeClick = useCallback((event, node) => {
+    setSelectedNodeInfo(node); // Store the entire node object
+    setIsPanelOpen(true); // Open the info panel
+  }, []);
+
+  // Handler to close the info panel
+  const handleClosePanel = () => {
+    setIsPanelOpen(false); // Close the info panel
+    setSelectedNodeInfo(null); // Clear selected node info
+  };
+
+  // Handler for vendor selection change
   const handleVendorChange = (event) => {
     const vendorName = event.target.value;
     setSelectedVendor(vendorName);
-    console.log("Vendor selezionato:", vendorName);
+    console.log("Selected vendor:", vendorName);
 
     if (window.api) {
-      // Chiama l'API Electron per leggere i file del vendor e costruire il grafo
       window.api.readVendorProfiles(vendorName)
         .then(graph => {
-          setProfileGraph(graph);
-          console.log("Grafo dei profili:", graph);
-          // Qui puoi aggiungere logica per visualizzare o utilizzare il grafo
+          setProfileGraph(graph); // Set the received graph data
+          console.log("Profile graph:", graph);
         })
         .catch(err => {
-          console.error("Errore nella lettura dei profili del vendor:", err);
-          setProfileGraph({ error: "Errore nel caricamento dei profili del vendor." });
+          console.error("Error reading vendor profiles:", err);
+          // Set an error message if profile reading fails
+          setProfileGraph({ error: "Error loading vendor profiles." });
         });
     }
   };
@@ -77,41 +216,114 @@ const App = () => {
         </Toolbar>
       </AppBar>
 
-      <Container sx={{ mt: 4 }}>
-        <FormControl fullWidth sx={{ mb: 3 }}>
-          <InputLabel id="vendor-select-label">Select a Vendor</InputLabel>
-          <Select
-            labelId="vendor-select-label"
-            id="vendor-select"
-            value={selectedVendor}
-            label="Select a Vendor"
-            onChange={handleVendorChange}
-          >
-            {vendorFolders.length > 0 ? (
-              vendorFolders.map((folder, index) => (
-                <MenuItem key={index} value={folder}>
-                  {folder}
-                </MenuItem>
-              ))
-            ) : (
-              <MenuItem disabled>Nessun vendor disponibile o caricamento in corso...</MenuItem>
-            )}
-          </Select>
-        </FormControl>
-
+      {/* Main container occupying the rest of the viewport height */}
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          height: 'calc(100vh - 64px)', // Full viewport height minus AppBar height
+          width: '100vw', // Full viewport width
+          position: 'relative', // Allows absolute positioning of children
+          overflow: 'hidden', // Prevents unwanted scrolls on the main container
+        }}
+      >
+        {/* Conditional rendering for graph or error message */}
         {profileGraph && (
-          <div>
-            <Typography variant="h5" sx={{ mt: 4, mb: 2 }}>
-              Profilo Grafico per {selectedVendor}
-            </Typography>
+          <>
             {profileGraph.error ? (
-              <Typography color="error">{profileGraph.error}</Typography>
+              <Container sx={{ mt: 4 }}>
+                <Typography color="error">{profileGraph.error}</Typography>
+              </Container>
             ) : (
-              <pre>{JSON.stringify(profileGraph, null, 2)}</pre>
+              <div style={{ width: '100%', height: '100%' }}> {/* React Flow takes 100% of parent Box */}
+                <ReactFlow
+                  nodes={nodes}
+                  edges={edges}
+                  onNodesChange={onNodesChange}
+                  onEdgesChange={onEdgesChange}
+                  onConnect={onConnect}
+                  onNodeClick={onNodeClick} // Attach the node click handler
+                  fitView // Fits the view to display all nodes and edges
+                >
+                  <MiniMap /> {/* Small map for navigation */}
+                  <Controls /> {/* Zoom and fit view controls */}
+                  <Background variant="dots" gap={12} size={1} /> {/* Dotted background */}
+                </ReactFlow>
+              </div>
             )}
-          </div>
+          </>
         )}
-      </Container>
+
+        {/* Vendor selection dropdown, positioned absolutely */}
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 20,
+            right: 20,
+            zIndex: 1000, // Ensure it's above the graph
+            backgroundColor: 'rgba(255, 255, 255, 0.9)', // Semi-transparent white background
+            borderRadius: 1, // Rounded corners
+            p: 2, // Padding
+            boxShadow: 3, // Subtle shadow for depth
+          }}
+        >
+          <FormControl sx={{ m: 1, minWidth: 200 }}>
+            <InputLabel id="vendor-select-label">Select a Vendor</InputLabel>
+            <Select
+              labelId="vendor-select-label"
+              id="vendor-select"
+              value={selectedVendor}
+              label="Select a Vendor"
+              onChange={handleVendorChange}
+              sx={{ color: 'text.primary' }} // Ensure text is readable
+            >
+              {vendorFolders.length > 0 ? (
+                vendorFolders.map((folder, index) => (
+                  <MenuItem key={index} value={folder}>
+                    {folder}
+                  </MenuItem>
+                ))
+              ) : (
+                <MenuItem disabled>No vendors available or loading...</MenuItem>
+              )}
+            </Select>
+          </FormControl>
+        </Box>
+      </Box>
+
+      {/* Node Information Panel (Drawer) */}
+      <Drawer
+        anchor="right" // Panel slides in from the right
+        open={isPanelOpen} // Controlled by isPanelOpen state
+        onClose={handleClosePanel} // Close handler for clicking outside or Esc key
+        PaperProps={{
+          sx: {
+            width: { xs: '80%', sm: '40%', md: '300px' }, // Responsive width for the panel
+            p: 3, // Padding inside the drawer
+            backgroundColor: customTheme.palette.background.default, // Match the theme background
+            boxShadow: 3, // Add shadow for depth
+          },
+        }}
+      >
+        {/* Close button at the top right of the panel */}
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <IconButton onClick={handleClosePanel}>
+            <CloseIcon />
+          </IconButton>
+        </Box>
+        {/* Display selected node's information */}
+        {selectedNodeInfo && (
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="h6" gutterBottom>
+              Node Information
+            </Typography>
+            <Typography variant="body1">
+              <strong>Label:</strong> {selectedNodeInfo.data?.label || selectedNodeInfo.id} {/* Display label or ID as fallback */}
+            </Typography>
+            {/* Future enhancements can add more node properties here */}
+          </Box>
+        )}
+      </Drawer>
     </ThemeProvider>
   );
 };
