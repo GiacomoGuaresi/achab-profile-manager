@@ -1,5 +1,6 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('api', {
-  getFiles: (folderPath) => ipcRenderer.invoke('get-files', folderPath),
+  getVendorFolders: (path) => ipcRenderer.invoke('get-vendor-folders', path),
+  readVendorProfiles: (vendorName) => ipcRenderer.invoke('read-vendor-profiles', vendorName),
 });

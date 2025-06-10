@@ -8,88 +8,109 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  List, // Mantenuto solo per riferimento, puoi rimuoverlo se non più usato
-  ListItem, // Mantenuto solo per riferimento, puoi rimuoverlo se non più usato
-  ListItemText // Mantenuto solo per riferimento, puoi rimuoverlo se non più usato
+  // Rimuovi List, ListItem, ListItemText se non più usati
 } from '@mui/material';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import CssBaseline from '@mui/material/CssBaseline'; // Per un reset CSS di base
+import CssBaseline from '@mui/material/CssBaseline';
 
-// Definisci il tuo tema personalizzato
 const customTheme = createTheme({
   palette: {
     primary: {
-      main: '#009688', // Il tuo colore primario
+      main: '#009688',
     },
   },
 });
 
 const App = () => {
-  const [files, setFiles] = useState([]);
-  const [selectedFile, setSelectedFile] = useState(''); // Stato per il file selezionato dalla Select
+  const [vendorFolders, setVendorFolders] = useState([]); // Cambiato da 'files' a 'vendorFolders'
+  const [selectedVendor, setSelectedVendor] = useState(''); // Stato per il vendor selezionato
+  const [profileGraph, setProfileGraph] = useState(null); // Nuovo stato per il grafo dei profili
+
   // ATTENZIONE: CAMBIA QUESTO PER IL TUO PERCORSO!
-  // Ho mantenuto il percorso che hai fornito. Assicurati che sia corretto per il tuo sistema.
-  const folderPath = 'C:\\Users\\guare\\source\\gingerRepos\\OrcaSlicer\\resources\\profiles';
+  const profilesRootPath = 'C:\\Users\\guare\\source\\gingerRepos\\OrcaSlicer\\resources\\profiles';
 
   useEffect(() => {
     if (window.api) {
-      window.api.getFiles(folderPath)
-        .then(fileList => {
-          // Filtra solo i file con estensione .json
-          const jsonFiles = fileList.filter(file => file.endsWith('.json'));
-          setFiles(jsonFiles);
+      // Inizialmente, ottieni solo i nomi delle cartelle dei vendor
+      window.api.getVendorFolders(profilesRootPath)
+        .then(folders => {
+          setVendorFolders(folders);
         })
         .catch(err => {
-          console.error("Errore nel recupero dei file:", err);
-          setFiles(["Errore nel caricamento dei file. Controlla la console."]);
+          console.error("Errore nel recupero delle cartelle dei vendor:", err);
+          setVendorFolders(["Errore nel caricamento delle cartelle. Controlla la console."]);
         });
     } else {
       console.warn("L'API 'window.api' non è disponibile. Sei in un browser o in un ambiente non Electron?");
-      setFiles(["L'API per leggere i file non è disponibile."]);
+      setVendorFolders(["L'API per leggere i file non è disponibile."]);
     }
   }, []);
 
-  const handleFileChange = (event) => {
-    setSelectedFile(event.target.value);
-    console.log("File selezionato:", event.target.value);
-    // Qui potresti aggiungere logica per gestire il file selezionato (es. aprirlo, visualizzarne il contenuto)
+  const handleVendorChange = (event) => {
+    const vendorName = event.target.value;
+    setSelectedVendor(vendorName);
+    console.log("Vendor selezionato:", vendorName);
+
+    if (window.api) {
+      // Chiama l'API Electron per leggere i file del vendor e costruire il grafo
+      window.api.readVendorProfiles(vendorName)
+        .then(graph => {
+          setProfileGraph(graph);
+          console.log("Grafo dei profili:", graph);
+          // Qui puoi aggiungere logica per visualizzare o utilizzare il grafo
+        })
+        .catch(err => {
+          console.error("Errore nella lettura dei profili del vendor:", err);
+          setProfileGraph({ error: "Errore nel caricamento dei profili del vendor." });
+        });
+    }
   };
 
   return (
-    // Avvolgi l'intera applicazione con ThemeProvider per applicare il tema
     <ThemeProvider theme={customTheme}>
-      <CssBaseline /> {/* Applica un reset CSS di base per coerenza */}
+      <CssBaseline />
       <AppBar position="static">
         <Toolbar>
           <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            Achab profile manager
+            Achab Profile Manager
           </Typography>
-          {/* Potresti aggiungere altri elementi alla navbar qui */}
         </Toolbar>
       </AppBar>
 
-      <Container sx={{ mt: 4 }}> {/* Aggiungi un margin-top per spaziatura */}
-        <FormControl fullWidth sx={{ mb: 3 }}> {/* Aggiungi un margin-bottom */}
+      <Container sx={{ mt: 4 }}>
+        <FormControl fullWidth sx={{ mb: 3 }}>
           <InputLabel id="vendor-select-label">Select a Vendor</InputLabel>
           <Select
             labelId="vendor-select-label"
             id="vendor-select"
-            value={selectedFile}
-            label="Seleziona un file JSON"
-            onChange={handleFileChange}
+            value={selectedVendor}
+            label="Select a Vendor"
+            onChange={handleVendorChange}
           >
-            {files.length > 0 ? (
-              files.map((file, index) => (
-                <MenuItem key={index} value={file}>
-                  {/* Rimuove l'estensione .json per la visualizzazione */}
-                  {file.replace('.json', '')}
+            {vendorFolders.length > 0 ? (
+              vendorFolders.map((folder, index) => (
+                <MenuItem key={index} value={folder}>
+                  {folder}
                 </MenuItem>
               ))
             ) : (
-              <MenuItem disabled>Nessun file JSON disponibile o caricamento in corso...</MenuItem>
+              <MenuItem disabled>Nessun vendor disponibile o caricamento in corso...</MenuItem>
             )}
           </Select>
         </FormControl>
+
+        {profileGraph && (
+          <div>
+            <Typography variant="h5" sx={{ mt: 4, mb: 2 }}>
+              Profilo Grafico per {selectedVendor}
+            </Typography>
+            {profileGraph.error ? (
+              <Typography color="error">{profileGraph.error}</Typography>
+            ) : (
+              <pre>{JSON.stringify(profileGraph, null, 2)}</pre>
+            )}
+          </div>
+        )}
       </Container>
     </ThemeProvider>
   );
