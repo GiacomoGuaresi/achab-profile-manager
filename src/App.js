@@ -35,6 +35,16 @@ const App = () => {
     }
   };
 
+  const loadGraphData = useCallback(() => {
+    if (!selectedVendor) return;
+
+    if (window.api) {
+      window.api.readVendorProfiles(selectedVendor)
+        .then(setProfileGraph)
+        .catch(() => setProfileGraph({ error: 'Error loading vendor profiles.' }));
+    }
+  }, [selectedVendor]);
+
   return (
     <ThemeProvider theme={customTheme}>
       <CssBaseline />
@@ -71,6 +81,7 @@ const App = () => {
             setIsPanelOpen(false);
             setSelectedNodeInfo(null);
           }}
+          reloadGraph={loadGraphData}
         />
       </Box>
     </ThemeProvider>

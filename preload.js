@@ -3,4 +3,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('api', {
   getVendorFolders: (path) => ipcRenderer.invoke('get-vendor-folders', path),
   readVendorProfiles: (vendorName) => ipcRenderer.invoke('read-vendor-profiles', vendorName),
+  cloneProfile: (originalFilePath, newName) => ipcRenderer.invoke('clone-profile', originalFilePath, newName),
+  addChildProfile: (originalFilePath, newName) => ipcRenderer.invoke('add-child-profile', originalFilePath, newName),
+  deleteProfile: (filePath) => ipcRenderer.invoke('delete-profile', filePath),
 });

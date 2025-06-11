@@ -60,7 +60,7 @@ async function readJsonFilesRecursively(dirPath) {
         try {
           const fileContent = await fs.readFile(fullPath, 'utf8');
           const jsonData = JSON.parse(fileContent);
-          jsonFilesData.push(jsonData);
+          jsonFilesData.push({ data: jsonData, filePath: fullPath });
         } catch (parseError) {
           console.error(`Errore nel parsing del file JSON ${fullPath}:`, parseError);
         }
@@ -78,7 +78,7 @@ function buildProfileGraph(profilesData) {
 
   const nodeMap = new Map();
 
-  profilesData.forEach((profile, index) => {
+  profilesData.forEach(({ data: profile, filePath }) => {
     if (profile.name) {
       const node = {
         id: profile.name,
@@ -87,7 +87,7 @@ function buildProfileGraph(profilesData) {
           ...(profile.type && { type: profile.type }),
           ...(profile.instantiation && { instantiation: profile.instantiation }),
           ...(profile.version && { version: profile.version }),
-          // ...(profile.filePath && { filePath: profile.filePath }),
+          filePath, // aggiunto qui
         },
         position: { x: Math.random() * 5000, y: Math.random() * 5000 },
         style: profile.instantiation == "false" ? {
@@ -106,7 +106,7 @@ function buildProfileGraph(profilesData) {
     }
   });
 
-  profilesData.forEach(profile => {
+  profilesData.forEach(({ data: profile }) => {
     if (
       profile.name &&
       profile.inherits &&
@@ -116,10 +116,10 @@ function buildProfileGraph(profilesData) {
         id: `e-${profile.inherits}-${profile.name}`,
         source: profile.inherits,
         target: profile.name,
-        type: 'bezier', // o 'default', 'step', ecc.
+        type: 'bezier',
         markerEnd: {
-          type: 'arrowclosed', // Aggiungi la freccia alla fine dell'arco
-          color: '#009688', // Colore della freccia (opzionale, usa il tuo primary color)
+          type: 'arrowclosed',
+          color: '#009688',
         },
       });
     }
@@ -127,6 +127,7 @@ function buildProfileGraph(profilesData) {
 
   return { nodes, edges };
 }
+
 
 
 // IPC Handler per ottenere le cartelle dei vendor (top-level directories)
@@ -153,5 +154,63 @@ ipcMain.handle('read-vendor-profiles', async (event, vendorName) => {
   } catch (error) {
     console.error(`Errore durante la lettura dei profili per il vendor ${vendorName}:`, error);
     throw new Error(`Impossibile leggere i profili per ${vendorName}.`);
+  }
+});
+
+ipcMain.handle('clone-profile', async (event, originalFilePath, newName) => {
+  try {
+    // Leggi il file JSON originale
+    const content = await fs.readFile(originalFilePath, 'utf8');
+    const jsonData = JSON.parse(content);
+
+    // Cambia il nome all'interno del json
+    jsonData.name = newName;
+
+    // Costruisci il nuovo path del file (stessa cartella, nome nuovo + .json)
+    const dir = path.dirname(originalFilePath);
+    const newFilePath = path.join(dir, `${newName}.json`);
+
+    // Scrivi il nuovo file
+    await fs.writeFile(newFilePath, JSON.stringify(jsonData, null, 2), 'utf8');
+
+    return { success: true, newFilePath };
+  } catch (error) {
+    console.error('Errore nel clonare il profilo:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('add-child-profile', async (event, originalFilePath, newName) => {
+  try {
+    // Leggi il file JSON originale
+    const content = await fs.readFile(originalFilePath, 'utf8');
+    const jsonData = JSON.parse(content);
+
+    // TODO: creare modello dati pulito con solo chiavi obbligatorie 
+
+    // Cambia il nome all'interno del json
+    jsonData.inherits = jsonData.name;
+    jsonData.name = newName;
+        
+    // Costruisci il nuovo path del file (stessa cartella, nome nuovo + .json)
+    const dir = path.dirname(originalFilePath);
+    const newFilePath = path.join(dir, `${newName}.json`);
+
+    // Scrivi il nuovo file
+    await fs.writeFile(newFilePath, JSON.stringify(jsonData, null, 2), 'utf8');
+
+    return { success: true, newFilePath };
+  } catch (error) {
+    console.error('Errore nel clonare il profilo:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('delete-profile', async (event, filePath) => {
+  try {
+    await fs.unlink(filePath); // usa await e unlink (async)
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
   }
 });
