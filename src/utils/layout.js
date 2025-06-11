@@ -18,7 +18,7 @@ const getLayoutedElements = async (nodes, edges) => {
     id: 'root',
     children: nodes.map((node) => ({
       ...node,
-      width: 150,
+      width: 200,
       height: 40,
     })),
     edges,

@@ -20,8 +20,6 @@ const GraphViewer = ({ profileGraph, onNodeClick }) => {
     }
   }, [profileGraph]);
 
-  const onConnect = useCallback((params) => setEdges((eds) => addEdge(params, eds)), []);
-
   return (
     <div style={{ width: '100%', height: '100%' }}>
       <ReactFlow
@@ -29,11 +27,11 @@ const GraphViewer = ({ profileGraph, onNodeClick }) => {
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
         onNodeClick={(event, node) => {
           console.log('GraphViewer onNodeClick:', node);
           onNodeClick(node);
         }}
+        nodesConnectable={false}
         fitView
       >
         <MiniMap />
