@@ -14,6 +14,7 @@ function createWindow() {
       contextIsolation: true, // Importante per la sicurezza
       nodeIntegration: false,
     },
+    icon: path.join(__dirname, 'assets/logo.png') 
   });
 
   mainWindow.loadFile(path.join(__dirname, 'public/index.html'));

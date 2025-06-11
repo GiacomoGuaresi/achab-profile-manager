@@ -8,26 +8,34 @@ import Home from './pages/Home';
 import Settings from './pages/Settings';
 import EditConfiguration from './pages/EditConfiguration';
 
+import HomeIcon from '@mui/icons-material/Home';
+
 const App = () => {
   return (
     <ThemeProvider theme={customTheme}>
       <CssBaseline />
       <HashRouter>
-        {/* AppBar visibile su tutte le pagine */}
-        <AppBar position="static">
-          <Toolbar>
-            <Box sx={{ flexGrow: 1 }}>
-              <Button color="inherit" component={Link} to="/">
-                Home
+        <AppBar position="static" sx={{
+          bgcolor: "secondary.main",
+          borderRadius: 0,
+        }}>
+          <Toolbar
+            sx={{ height: 48, display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: '48px !important', }}>
+            <Box
+              sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', }}>
+              <Button color="primary" component={Link} to="/" sx={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'primary.main', color: '#ffffff', minWidth: 48, minHeight: 48, p: 0, borderRadius: 0, }}>
+                <HomeIcon fontSize="medium" />
               </Button>
-              <Button color="inherit" component={Link} to="/settings">
+
+              {/* Settings Button */}
+              <Button color="inherit" component={Link} to="/settings" sx={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 0, px: 1, }}>
                 Settings
               </Button>
             </Box>
           </Toolbar>
         </AppBar>
 
-        {/* Contenuto specifico per rotta */}
+        {/* Content specific to the route */}
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/settings" element={<Settings />} />
