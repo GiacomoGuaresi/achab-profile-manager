@@ -12,14 +12,18 @@ import {
   Drawer, // Imported for the information panel
   IconButton, // Imported for the close button in the panel
 } from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close'; // Icon for the close button
+import ReactFlow, { MiniMap, Controls, Background, useNodesState, useEdgesState, addEdge } from 'reactflow';
+import Elk from 'elkjs/lib/elk.bundled.js';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 
-import ReactFlow, { MiniMap, Controls, Background, useNodesState, useEdgesState, addEdge } from 'reactflow';
-import 'reactflow/dist/style.css';
+import CloseIcon from '@mui/icons-material/Close'; // Icon for the close button
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import AddIcon from '@mui/icons-material/Add';
+import DeleteIcon from '@mui/icons-material/Delete';
+import EditIcon from '@mui/icons-material/Edit';
 
-import Elk from 'elkjs/lib/elk.bundled.js';
+import 'reactflow/dist/style.css';
 
 // Initialize ELK for graph layouting
 const elk = new Elk({
@@ -205,6 +209,22 @@ const App = () => {
     }
   };
 
+  const handleClone = () => {
+    // implementa la logica per clonare
+  };
+
+  const handleAddChild = () => {
+    // implementa la logica per aggiungere un figlio
+  };
+
+  const handleDelete = () => {
+    // implementa la logica per cancellare
+  };
+
+  const handleEdit = () => {
+    // implementa la logica per modificare/visualizzare
+  };
+
   return (
     <ThemeProvider theme={customTheme}>
       <CssBaseline />
@@ -293,12 +313,12 @@ const App = () => {
 
       {/* Node Information Panel (Drawer) */}
       <Drawer
-        anchor="right" // Panel slides in from the right
+        anchor="bottom"
         open={isPanelOpen} // Controlled by isPanelOpen state
         onClose={handleClosePanel} // Close handler for clicking outside or Esc key
         PaperProps={{
           sx: {
-            width: { xs: '80%', sm: '40%', md: '300px' }, // Responsive width for the panel
+            width: '100%', // Responsive width for the panel
             p: 3, // Padding inside the drawer
             backgroundColor: customTheme.palette.background.default, // Match the theme background
             boxShadow: 3, // Add shadow for depth
@@ -313,14 +333,50 @@ const App = () => {
         </Box>
         {/* Display selected node's information */}
         {selectedNodeInfo && (
-          <Box sx={{ mt: 2 }}>
+          <Box>
             <Typography variant="h6" gutterBottom>
-              Node Information
+              {selectedNodeInfo.data?.label || selectedNodeInfo.id}
             </Typography>
-            <Typography variant="body1">
-              <strong>Label:</strong> {selectedNodeInfo.data?.label || selectedNodeInfo.id} {/* Display label or ID as fallback */}
-            </Typography>
-            {/* Future enhancements can add more node properties here */}
+
+            {selectedNodeInfo.data?.type && (
+              <Typography variant="body1">
+                <strong>Type:</strong> {selectedNodeInfo.data.type}
+              </Typography>
+            )}
+
+            {selectedNodeInfo.data?.instantiation && (
+              <Typography variant="body1">
+                <strong>Instantiation:</strong> {selectedNodeInfo.data.instantiation}
+              </Typography>
+            )}
+
+            {selectedNodeInfo.data?.version && (
+              <Typography variant="body1">
+                <strong>Version:</strong> {selectedNodeInfo.data.version}
+              </Typography>
+            )}
+
+            {selectedNodeInfo.data?.filePath && (
+              <Typography variant="body1">
+                <strong>File Path:</strong> {selectedNodeInfo.data.filePath}
+              </Typography>
+            )}
+
+            {/* Action Buttons */}
+            <Box sx={{ display: 'flex', gap: 2, mt: 3 }}>
+              <Button variant="outlined" startIcon={<ContentCopyIcon />} onClick={handleClone}>
+                Clone configuration
+              </Button>
+              <Button variant="outlined" startIcon={<AddIcon />} onClick={handleAddChild}>
+                Add child configuration
+              </Button>
+              <Button variant="outlined" startIcon={<DeleteIcon />} color="error" onClick={handleDelete}>
+                Delete configuration
+              </Button>
+              <Button variant="outlined" startIcon={<EditIcon />} onClick={handleEdit}>
+                Edit/View configuration
+              </Button>
+            </Box>
           </Box>
         )}
       </Drawer>

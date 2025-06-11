@@ -82,8 +82,23 @@ function buildProfileGraph(profilesData) {
     if (profile.name) {
       const node = {
         id: profile.name,
-        data: { label: profile.name },
-        position: { x: Math.random() * 5000, y: Math.random() * 5000 } 
+        data: {
+          label: profile.name,
+          ...(profile.type && { type: profile.type }),
+          ...(profile.instantiation && { instantiation: profile.instantiation }),
+          ...(profile.version && { version: profile.version }),
+          // ...(profile.filePath && { filePath: profile.filePath }),
+        },
+        position: { x: Math.random() * 5000, y: Math.random() * 5000 },
+        style: profile.instantiation == "false" ? {
+          border: '2px dashed #009688',
+          borderRadius: '8px',
+          padding: 10,
+        } : {
+          border: '2px solid #009688',
+          borderRadius: '8px',
+          padding: 10,
+        }
       };
 
       nodes.push(node);
