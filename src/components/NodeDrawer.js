@@ -8,8 +8,11 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
+import { useNavigate } from 'react-router-dom';
 
 const NodeDrawer = ({ open, onClose, nodeInfo, reloadGraph }) => {
+  const navigate = useNavigate();
+
   const [cloneName, setCloneName] = useState('');
   const [childName, setChildName] = useState('');
 
@@ -98,7 +101,12 @@ const NodeDrawer = ({ open, onClose, nodeInfo, reloadGraph }) => {
   };
 
   const handleEdit = () => {
-    // Placeholder for Edit/View logic
+    if (!nodeInfo) {
+      alert("No node selected");
+      return;
+    }
+    // Passa i dati del nodo alla pagina edit via state
+    navigate('/edit-configuration', { state: { nodeInfo } });
   };
 
   return (

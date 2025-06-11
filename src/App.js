@@ -1,89 +1,39 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React from 'react';
 import { ThemeProvider } from '@mui/material/styles';
-import { CssBaseline, AppBar, Toolbar, Typography, Box, Container } from '@mui/material';
+import { CssBaseline, AppBar, Toolbar, Typography, Button, Box } from '@mui/material';
+import { HashRouter, Routes, Route, Link } from 'react-router-dom';
 
 import customTheme from './theme/customTheme';
-import GraphViewer from './components/GraphViewer';
-import VendorSelector from './components/VendorSelector';
-import NodeDrawer from './components/NodeDrawer';
+import Home from './pages/Home';
+import Settings from './pages/Settings';
+import EditConfiguration from './pages/EditConfiguration';
 
 const App = () => {
-  const [vendorFolders, setVendorFolders] = useState([]);
-  const [selectedVendor, setSelectedVendor] = useState('');
-  const [profileGraph, setProfileGraph] = useState(null);
-  const [selectedNodeInfo, setSelectedNodeInfo] = useState(null);
-  const [isPanelOpen, setIsPanelOpen] = useState(false);
-
-  const profilesRootPath = 'C:\\Users\\guare\\source\\gingerRepos\\OrcaSlicer\\resources\\profiles';
-
-  useEffect(() => {
-    if (window.api) {
-      window.api.getVendorFolders(profilesRootPath)
-        .then(setVendorFolders)
-        .catch(() => setVendorFolders(['Error loading folders. Check console.']));
-    } else {
-      setVendorFolders(['File reading API is not available.']);
-    }
-  }, []);
-
-  const handleVendorChange = (vendorName) => {
-    setSelectedVendor(vendorName);
-    if (window.api) {
-      window.api.readVendorProfiles(vendorName)
-        .then(setProfileGraph)
-        .catch(() => setProfileGraph({ error: 'Error loading vendor profiles.' }));
-    }
-  };
-
-  const loadGraphData = useCallback(() => {
-    if (!selectedVendor) return;
-
-    if (window.api) {
-      window.api.readVendorProfiles(selectedVendor)
-        .then(setProfileGraph)
-        .catch(() => setProfileGraph({ error: 'Error loading vendor profiles.' }));
-    }
-  }, [selectedVendor]);
-
   return (
     <ThemeProvider theme={customTheme}>
       <CssBaseline />
-      <AppBar position="static">
-        <Toolbar>
-          <Typography variant="h6" sx={{ flexGrow: 1 }}>Achab Profile Manager</Typography>
-        </Toolbar>
-      </AppBar>
+      <HashRouter>
+        {/* AppBar visibile su tutte le pagine */}
+        <AppBar position="static">
+          <Toolbar>
+            <Box sx={{ flexGrow: 1 }}>
+              <Button color="inherit" component={Link} to="/">
+                Home
+              </Button>
+              <Button color="inherit" component={Link} to="/settings">
+                Settings
+              </Button>
+            </Box>
+          </Toolbar>
+        </AppBar>
 
-      <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 64px)', position: 'relative', overflow: 'hidden' }}>
-        {profileGraph?.error ? (
-          <Container sx={{ mt: 4 }}>
-            <Typography color="error">{profileGraph.error}</Typography>
-          </Container>
-        ) : (
-          <GraphViewer
-            profileGraph={profileGraph}
-            onNodeClick={(node) => {
-              console.log('App onNodeClick:', node);
-              setSelectedNodeInfo(node);
-              setIsPanelOpen(true);
-            }}
-          />
-        )}
-        <VendorSelector
-          folders={vendorFolders}
-          selectedVendor={selectedVendor}
-          onChange={handleVendorChange}
-        />
-        <NodeDrawer
-          open={isPanelOpen}
-          nodeInfo={selectedNodeInfo}
-          onClose={() => {
-            setIsPanelOpen(false);
-            setSelectedNodeInfo(null);
-          }}
-          reloadGraph={loadGraphData}
-        />
-      </Box>
+        {/* Contenuto specifico per rotta */}
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/edit-configuration" element={<EditConfiguration />} />
+        </Routes>
+      </HashRouter>
     </ThemeProvider>
   );
 };
