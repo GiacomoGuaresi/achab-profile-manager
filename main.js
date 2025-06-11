@@ -184,20 +184,22 @@ ipcMain.handle('add-child-profile', async (event, originalFilePath, newName) => 
   try {
     // Leggi il file JSON originale
     const content = await fs.readFile(originalFilePath, 'utf8');
-    const jsonData = JSON.parse(content);
+    const oldJsonData = JSON.parse(content);
+    const newJsonData = {
+      "from": oldJsonData.from,
+      "type": oldJsonData.type,
+      "instantiation": oldJsonData.instantiation,
+      "version": "0.0.0.0",
+      "inherits": oldJsonData.name,
+      "name": newName,
+    }
 
-    // TODO: creare modello dati pulito con solo chiavi obbligatorie 
-
-    // Cambia il nome all'interno del json
-    jsonData.inherits = jsonData.name;
-    jsonData.name = newName;
-        
     // Costruisci il nuovo path del file (stessa cartella, nome nuovo + .json)
     const dir = path.dirname(originalFilePath);
     const newFilePath = path.join(dir, `${newName}.json`);
 
     // Scrivi il nuovo file
-    await fs.writeFile(newFilePath, JSON.stringify(jsonData, null, 2), 'utf8');
+    await fs.writeFile(newFilePath, JSON.stringify(newJsonData, null, 2), 'utf8');
 
     return { success: true, newFilePath };
   } catch (error) {
