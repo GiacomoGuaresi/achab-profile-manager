@@ -36,16 +36,13 @@ def extract_cpp_definitions(folder_path):
     tooltip_pattern = re.compile(r'tooltip\s*=\s*L\((?P<value>"(?:[^"\\]|\\.)*?"(?:(?:\s*"(?:[^"\\]|\\.)*?")*))\);')
     
     sidetext_pattern = re.compile(r'sidetext\s*=\s*L\("(?P<value>[^"]*)"\);')
-    ratio_over_pattern = re.compile(r'ratio_over\s*=\s*"(?P<value>[^"]*)";')
     
     # Regex per valori numerici (min, max, max_literal), accetta interi, float e 'f' per i float
     numeric_pattern_template = r'{field_name}\s*=\s*(?P<value>-?\d+(?:\.\d+)?f?);'
     min_pattern = re.compile(numeric_pattern_template.format(field_name="min"))
     max_pattern = re.compile(numeric_pattern_template.format(field_name="max"))
     max_literal_pattern = re.compile(numeric_pattern_template.format(field_name="max_literal"))
-    
-    mode_pattern = re.compile(r'mode\s*=\s*(?P<value>com[A-Za-z]+);')
-    
+        
     # Cattura l'intero argomento della funzione set_default_value
     set_default_value_pattern = re.compile(r'set_default_value\((?P<value>.*?)\);')
 
@@ -54,11 +51,9 @@ def extract_cpp_definitions(folder_path):
         ("label", label_pattern),
         ("tooltip", tooltip_pattern),
         ("sidetext", sidetext_pattern),
-        ("ratio_over", ratio_over_pattern),
         ("min", min_pattern),
         ("max", max_pattern),
         ("max_literal", max_literal_pattern),
-        ("mode", mode_pattern),
         ("set_default_value", set_default_value_pattern)
     ]
 
@@ -68,7 +63,7 @@ def extract_cpp_definitions(folder_path):
             # Controlla se il file è un file C++
             if file_name.endswith(".cpp"):
                 file_path = os.path.join(root, file_name)
-                print(f"Elaborazione: {file_path}") # Stampa il file in elaborazione
+                # print(f"Elaborazione: {file_path}") # Stampa il file in elaborazione
 
                 try:
                     # Leggi il contenuto del file
@@ -89,7 +84,6 @@ def extract_cpp_definitions(folder_path):
                             field_match = pattern.search(block_content)
                             if field_match:
                                 value = field_match.group("value").strip()
-                                
                                 # Gestione speciale per i tooltip con stringhe concatenate
                                 if field_name == "tooltip":
                                     # Rimuovi le virgolette e gli spazi intermedi tra le stringhe concatenate
@@ -99,6 +93,7 @@ def extract_cpp_definitions(folder_path):
                                     # Gestisci i caratteri di escape per virgolette e newline
                                     value = value.replace('\\"', '"')
                                     value = value.replace('\\n', '\n')
+                                    definition_data[field_name] = value
                                 # Conversione dei valori numerici in int/float
                                 elif field_name in ["min", "max", "max_literal"]:
                                     try:
