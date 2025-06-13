@@ -88,7 +88,7 @@ function buildProfileGraph(profilesData) {
           ...(profile.type && { type: profile.type }),
           ...(profile.instantiation && { instantiation: profile.instantiation }),
           ...(profile.version && { version: profile.version }),
-          filePath, // aggiunto qui
+          filePath: filePath.replace(/\\/g, '/'),
         },
         position: { x: Math.random() * 5000, y: Math.random() * 5000 },
         style: profile.instantiation == "false" ? {
@@ -215,5 +215,43 @@ ipcMain.handle('delete-profile', async (event, filePath) => {
     return { success: true };
   } catch (err) {
     return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('read-single-config', async (event, filePath) => {
+  try {
+    const absolutePath = path.resolve(filePath);
+    const rawData = await fs.readFile(absolutePath, 'utf-8');
+    const jsonData = JSON.parse(rawData);
+    return { success: true, data: jsonData };
+  } catch (error) {
+    console.error('Error reading config:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('find-config-by-name', async (event, directoryPath, nameToFind) => {
+  try {
+    // directoryPath deve essere assoluto
+    const files = await fs.readdir(directoryPath);
+    
+    for (const file of files) {
+      if (file.endsWith('.json')) {
+        const fullPath = path.join(directoryPath, file); // directoryPath deve essere assoluto e valido
+        try {
+          const content = await fs.readFile(fullPath, 'utf-8');
+          const json = JSON.parse(content);
+          if (json.name === nameToFind) {
+            return { success: true, path: fullPath };
+          }
+        } catch (err) {
+          // ignore JSON parse errors
+        }
+      }
+    }
+
+    return { success: false, error: `No config found with name "${nameToFind}" in ${directoryPath}` };
+  } catch (error) {
+    return { success: false, error: error.message };
   }
 });

@@ -33,6 +33,7 @@
     "@mui/material": "^7.1.1",
     "elkjs": "^0.10.0",
     "icons-material": "^0.0.1-security",
+    "path-browserify": "^1.0.1",
     "react-force-graph": "^1.47.6",
     "react-force-graph-2d": "^1.27.1",
     "react-router-dom": "^7.6.2",

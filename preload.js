@@ -6,4 +6,6 @@ contextBridge.exposeInMainWorld('api', {
   cloneProfile: (originalFilePath, newName) => ipcRenderer.invoke('clone-profile', originalFilePath, newName),
   addChildProfile: (originalFilePath, newName) => ipcRenderer.invoke('add-child-profile', originalFilePath, newName),
   deleteProfile: (filePath) => ipcRenderer.invoke('delete-profile', filePath),
+  readSingleConfig: (filePath) => ipcRenderer.invoke('read-single-config', filePath),
+  findConfigByName: (directoryPath, nameToFind) => ipcRenderer.invoke('find-config-by-name', directoryPath, nameToFind),
 });
