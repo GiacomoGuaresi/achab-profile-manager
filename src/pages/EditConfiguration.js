@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Typography, Button, Box, Breadcrumbs, Link, Modal } from '@mui/material';
+import { Typography, Button, Box, Breadcrumbs, Link, Modal, TextField, IconButton } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
+import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 
 const EditConfiguration = () => {
   const location = useLocation();
@@ -18,6 +19,7 @@ const EditConfiguration = () => {
   const [editValues, setEditValues] = useState({});
   const [editKey, setEditKey] = useState(null);
   const [editValue, setEditValue] = useState('');
+  const [newKey, setNewKey] = useState('');
 
   const shortenValue = (val, maxLen = 20) => {
     const str = typeof val === 'string' ? val : String(val);
@@ -70,6 +72,22 @@ const EditConfiguration = () => {
     return configsChain;
   };
 
+  // Handler vuoto per il tasto +
+  const handleAddChild = (key) => {
+    // Non fa nulla per ora
+    console.log('Add child for key:', key);
+  };
+
+  // Handler vuoto per il campo di testo nuova chiave
+  const handleNewKeyChange = (e) => {
+    setNewKey(e.target.value);
+  };
+
+  const handleAddNewKey = () => {
+    // Non fa nulla per ora
+    console.log('Add new key:', newKey);
+    setNewKey('');
+  };
 
   useEffect(() => {
     if (!nodeInfo?.data?.filePath) return;
@@ -175,6 +193,9 @@ const EditConfiguration = () => {
   return (
     <>
       <Box sx={{ p: 3 }}>
+        <Button variant="outlined" onClick={() => navigate(-1)} sx={{ mt: 3 }}>
+          Back
+        </Button>
         {/* ... header, breadcrumb principale */}
         <Breadcrumbs aria-label="breadcrumb" sx={{ mb: 2 }}>
           {breadcrumb.slice().reverse().map((item, i, arr) => (
@@ -193,16 +214,18 @@ const EditConfiguration = () => {
         <Box>
           {Object.entries(config).map(([key, values]) => {
             const isEditable = firstConfig && Object.prototype.hasOwnProperty.call(firstConfig, key);
+            const hasFirstChildValue = isEditable; // come definito nel tuo codice
+            const reversedValues = values.slice().reverse();
 
             return (
               <Box key={key} sx={{ mb: 1, display: 'flex', alignItems: 'center' }}>
                 <Typography variant="body1" component="div" sx={{ flex: 1 }}>
                   <strong>{key}:</strong>{' '}
                   <Breadcrumbs aria-label="breadcrumb" separator=">">
-                    {values.slice().reverse().map((val, i, arr) => {
+                    {reversedValues.map((val, i) => {
                       const short = shortenValue(val);
                       const isTruncated = short !== (typeof val === 'string' ? val : String(val));
-                      const isFirstChildValue = i === arr.length - 1; // ultimo elemento è il valore del primo figlio
+                      const isFirstChildValue = i === reversedValues.length - 1;
 
                       return (
                         <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
@@ -217,7 +240,7 @@ const EditConfiguration = () => {
                             {short}
                           </span>
 
-                          {isFirstChildValue && firstConfig && Object.prototype.hasOwnProperty.call(firstConfig, key) && (
+                          {isFirstChildValue && isEditable && (
                             <Button
                               onClick={() => openEditModal(key)}
                               size="small"
@@ -230,16 +253,39 @@ const EditConfiguration = () => {
                         </span>
                       );
                     })}
+
+                    {/* Se NON ha firstChildValue, aggiungo icona + accanto all'ultimo elemento */}
+                    {!hasFirstChildValue && (
+                      <IconButton
+                        size="small"
+                        onClick={() => handleAddChild(key)}
+                        aria-label={`Add child to ${key}`}
+                        sx={{ ml: 1 }}
+                      >
+                        <AddCircleOutlineIcon fontSize="small" />
+                      </IconButton>
+                    )}
                   </Breadcrumbs>
                 </Typography>
               </Box>
             );
           })}
-        </Box>
 
-        <Button variant="outlined" onClick={() => navigate(-1)} sx={{ mt: 3 }}>
-          Back
-        </Button>
+          {/* Campo di testo per aggiungere una nuova chiave */}
+          <Box sx={{ mt: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+            <TextField
+              label="Add new key"
+              variant="outlined"
+              size="small"
+              value={newKey}
+              onChange={handleNewKeyChange}
+              sx={{ flexGrow: 1 }}
+            />
+            <Button variant="contained" onClick={handleAddNewKey} disabled={!newKey.trim()}>
+              Add
+            </Button>
+          </Box>
+        </Box>
 
         {/* Modal per valore completo */}
         <Modal
