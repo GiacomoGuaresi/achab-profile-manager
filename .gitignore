@@ -157,3 +157,4 @@ packages
 
 # Local History for Visual Studio Code
 .history/
+scripts/output.json
