@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Typography, Button, Box } from '@mui/material';
+import { Typography, Button, Box, TextField } from '@mui/material';
 import { useFileActions } from '../FileActionsContext';
 
 import ConfigKeyItem from '../components/ConfigKeyItem';
@@ -33,6 +33,12 @@ const EditConfiguration = () => {
   const [editKey, setEditKey] = useState(null);
   const [editValue, setEditValue] = useState('');
   const [newKey, setNewKey] = useState('');
+
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const filteredConfigEntries = Object.entries(config || {}).filter(([key]) =>
+    key.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const save = () => {
     window.api.saveConfig(nodeInfo.data.filePath, draftCopyRef.current)
@@ -344,8 +350,18 @@ const EditConfiguration = () => {
     <>
       <ConfigNavbar breadcrumbItems={breadcrumb} navigate={navigate} />
       <Box sx={{ p: 3 }}>
+        <TextField
+          label="Search config key"
+          variant="outlined"
+          size="small"
+          fullWidth
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          sx={{ mb: 2 }}
+        />
+
         <Box>
-          {Object.entries(config).map(([key, values], index) => {
+          {filteredConfigEntries.map(([key, values], index) => {
             const isEditable = firstConfig && Object.prototype.hasOwnProperty.call(firstConfig, key);
             return (
               <ConfigKeyItem
@@ -368,7 +384,10 @@ const EditConfiguration = () => {
           />
         </Box>
 
-        <ShowConfigKeyFullValueModal fullValue={fullValue} handleCloseFullValue={handleCloseFullValue} />
+        <ShowConfigKeyFullValueModal
+          fullValue={fullValue}
+          handleCloseFullValue={handleCloseFullValue}
+        />
       </Box>
 
       <EditConfigKeyValueModal
