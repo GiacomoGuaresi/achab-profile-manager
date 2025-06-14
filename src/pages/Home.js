@@ -10,10 +10,13 @@ const profilesRootPath =
 
 const Home = () => {
   const [vendorFolders, setVendorFolders] = useState([]);
-  const [selectedVendor, setSelectedVendor] = useState('');
   const [profileGraph, setProfileGraph] = useState(null);
   const [selectedNodeInfo, setSelectedNodeInfo] = useState(null);
   const [isPanelOpen, setIsPanelOpen] = useState(false);
+
+  const [selectedVendor, setSelectedVendor] = useState(() => {
+    return localStorage.getItem('selectedVendor') || '';
+  });
 
   useEffect(() => {
     if (window.api) {
