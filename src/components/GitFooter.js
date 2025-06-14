@@ -10,6 +10,7 @@ const GitFooter = ({ branch = 'main', lastCommit = 'abc1234', changes = '3 modif
       component="footer"
       sx={{
         height: '24px',
+        padding: '2px 8px',
         backgroundColor: '#fff',
         color: '#000',
         position: 'fixed',
