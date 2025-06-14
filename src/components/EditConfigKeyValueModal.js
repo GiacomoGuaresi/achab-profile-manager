@@ -1,9 +1,14 @@
-
 import React from 'react';
 import { Typography, Button, Box, Modal } from '@mui/material';
 
-
-const EditConfigKeyValueModal = ({ editKey, editValue, setEditValue, saveEditValue, closeEditModal }) => (
+const EditConfigKeyValueModal = ({
+    editKey,
+    editValue,
+    setEditValue,
+    saveEditValue,
+    deleteEditValue,
+    closeEditModal
+}) => (
     <Modal
         open={!!editKey}
         onClose={closeEditModal}
@@ -32,13 +37,18 @@ const EditConfigKeyValueModal = ({ editKey, editValue, setEditValue, saveEditVal
                 value={editValue}
                 onChange={(e) => setEditValue(e.target.value)}
             />
-            <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-                <Button variant="outlined" onClick={closeEditModal}>
-                    Cancel
+            <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Button color="error" onClick={deleteEditValue}>
+                    Delete
                 </Button>
-                <Button variant="contained" onClick={saveEditValue}>
-                    Save
-                </Button>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                    <Button variant="outlined" onClick={closeEditModal}>
+                        Cancel
+                    </Button>
+                    <Button variant="contained" onClick={saveEditValue}>
+                        Save
+                    </Button>
+                </Box>
             </Box>
         </Box>
     </Modal>

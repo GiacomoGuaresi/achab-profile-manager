@@ -200,6 +200,61 @@ const EditConfiguration = () => {
     closeEditModal();
   }, [editKey, editValue, closeEditModal]);
 
+  const deleteEditValue = useCallback(() => {
+    if (!editKey) return;
+
+    setConfig(prevConfig => {
+      const oldValues = prevConfig[editKey] || [];
+      const newValues = oldValues.slice(1); // rimuove il primo valore
+
+      const updatedConfig = { ...prevConfig };
+      if (newValues.length === 0) {
+        delete updatedConfig[editKey];
+      } else {
+        updatedConfig[editKey] = newValues;
+      }
+
+      // Salva prima il valore originale di firstConfig per confronto
+      const firstConfigBefore = { ...firstConfig };
+
+      // Aggiorna firstConfig
+      setFirstConfig(prevFirst => {
+        const updatedFirst = { ...prevFirst };
+        if (newValues.length === 0) {
+          delete updatedFirst[editKey];
+        } else {
+          updatedFirst[editKey] = newValues[0];
+        }
+        return updatedFirst;
+      });
+
+      // Aggiorna draftCopyRef
+      draftCopyRef.current = (() => {
+        const draft = { ...draftCopyRef.current };
+        if (newValues.length === 0) {
+          delete draft[editKey];
+        } else {
+          draft[editKey] = newValues[0];
+        }
+        return draft;
+      })();
+
+      // ✅ Imposta changedKeys correttamente:
+      setChangedKeys(prev => {
+        const newFirst = newValues[0];
+        const original = firstConfigBefore[editKey];
+        return {
+          ...prev,
+          [editKey]: newFirst !== original,
+        };
+      });
+
+      return updatedConfig;
+    });
+
+    closeEditModal();
+  }, [editKey, closeEditModal, firstConfig]);
+
   useEffect(() => {
     setActions({ save, discard });
 
@@ -235,8 +290,8 @@ const EditConfiguration = () => {
             obj[key] = mergedConfig[key];
             return obj;
           }, {});
-          
-      
+
+
         setConfig(sortedConfig);
         setBreadcrumb(breadcrumbItems);
         setError(null);
@@ -322,6 +377,7 @@ const EditConfiguration = () => {
         setEditValue={setEditValue}
         saveEditValue={saveEditValue}
         closeEditModal={closeEditModal}
+        deleteEditValue={deleteEditValue}
       />
     </>
   );
