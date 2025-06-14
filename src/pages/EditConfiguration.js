@@ -1,10 +1,17 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Typography, Button, Box, Breadcrumbs, Link, Modal, TextField, IconButton, Tooltip } from '@mui/material';
-import EditIcon from '@mui/icons-material/Edit';
-import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import { Typography, Button, Box } from '@mui/material';
+
+import ConfigKeyItem from '../components/ConfigKeyItem';
+import ConfigNavbar from '../components/ConfigNavbar';
+import ShowConfigKeyFullValueModal from '../components/ShowConfigKeyFullValueModal';
+import EditConfigKeyValueModal from '../components/EditConfigKeyValueModal';
+import AddNewConfigKeyInput from '../components/AddNewConfigKeyInput';
+
+const cleanString = (val) => {
+  if (typeof val === 'string') return val.replace(/\n/g, '');
+  return String(val);
+};
 
 const EditConfiguration = () => {
   const location = useLocation();
@@ -15,7 +22,7 @@ const EditConfiguration = () => {
   const [config, setConfig] = useState(null);
   const [breadcrumb, setBreadcrumb] = useState([]);
   const [error, setError] = useState(null);
-  const [fullValue, setFullValue] = useState(null); // stato per il valore completo nel popup
+  const [fullValue, setFullValue] = useState(null);
 
   const [firstConfig, setFirstConfig] = useState(null);
   const [editValues, setEditValues] = useState({});
@@ -23,30 +30,16 @@ const EditConfiguration = () => {
   const [editValue, setEditValue] = useState('');
   const [newKey, setNewKey] = useState('');
 
-  const shortenValue = (val, maxLen = 20) => {
-    const str = typeof val === 'string' ? val : String(val);
-    if (str.length > maxLen) {
-      return str.slice(0, maxLen) + '...';
-    }
-    return str;
-  };
-
-  // funzione per mostrare il popup con il valore completo
-  const handleOpenFullValue = (val) => {
+  const handleOpenFullValue = useCallback((val) => {
     setFullValue(val);
-  };
+  }, []);
 
-  const handleCloseFullValue = () => {
+  const handleCloseFullValue = useCallback(() => {
     setFullValue(null);
-  };
-  const cleanString = (val) => {
-    if (typeof val === 'string') return val.replace(/\n/g, '');
-    return String(val);
-  };
+  }, []);
 
-  const loadConfigsChain = async (filePath) => {
+  const loadConfigsChain = useCallback(async (filePath) => {
     const configsChain = [];
-
     let currentPath = filePath;
     const dir = currentPath.substring(0, currentPath.lastIndexOf('/'));
 
@@ -59,37 +52,53 @@ const EditConfiguration = () => {
       configsChain.push(currentConfig);
 
       if (currentConfig.inherits) {
-        // Cerca file padre
         const findRes = await window.api.findConfigByName(dir, currentConfig.inherits);
         if (!findRes.success) {
           throw new Error(`Inherited config not found: ${findRes.error}`);
         }
         currentPath = findRes.path;
       } else {
-        currentPath = null; // fine catena
+        currentPath = null;
       }
     }
-
-    // configsChain è array [figlio, padre, nonno, ...]
     return configsChain;
-  };
+  }, []);
 
-  // Handler vuoto per il tasto +
-  const handleAddChild = (key) => {
-    // Non fa nulla per ora
+  const handleAddChild = useCallback((key) => {
     console.log('Add child for key:', key);
-  };
+  }, []);
 
-  // Handler vuoto per il campo di testo nuova chiave
-  const handleNewKeyChange = (e) => {
+  const handleNewKeyChange = useCallback((e) => {
     setNewKey(e.target.value);
-  };
+  }, []);
 
-  const handleAddNewKey = () => {
-    // Non fa nulla per ora
+  const handleAddNewKey = useCallback(() => {
     console.log('Add new key:', newKey);
     setNewKey('');
-  };
+  }, [newKey]);
+
+  const openEditModal = useCallback((key) => {
+    const currentVal = config[key]?.[0];
+    setEditKey(key);
+    setEditValue(currentVal ?? '');
+  }, [config]);
+
+  const closeEditModal = useCallback(() => {
+    setEditKey(null);
+    setEditValue('');
+  }, []);
+
+  const saveEditValue = useCallback(() => {
+    setEditValues(prev => ({ ...prev, [editKey]: editValue }));
+    setConfig(prevConfig => {
+      const newConfig = { ...prevConfig };
+      if (newConfig[editKey]) {
+        newConfig[editKey] = [editValue, ...newConfig[editKey].slice(1)];
+      }
+      return newConfig;
+    });
+    closeEditModal();
+  }, [editKey, editValue, closeEditModal]);
 
   useEffect(() => {
     if (!nodeInfo?.data?.filePath) return;
@@ -97,27 +106,20 @@ const EditConfiguration = () => {
     async function load() {
       try {
         const chain = await loadConfigsChain(nodeInfo.data.filePath);
-
         setFirstConfig(chain[0]);
-
-        // Prendi tutti i nomi per il breadcrumb generale
         const breadcrumbItems = chain.map(cfg => cleanString(cfg.name || 'Unnamed'));
-
-        // Unisci le chiavi da tutti i config in un set
         const allKeys = new Set(chain.flatMap(cfg => Object.keys(cfg)));
-
-        // Per ogni chiave costruisci array valori dal figlio verso il padre
         const mergedConfig = {};
+
         allKeys.forEach((key) => {
           const valuesChain = chain.map(cfg => cfg[key]).filter(v => v !== undefined);
           mergedConfig[key] = valuesChain;
         });
 
         if (Object.keys(editValues).length > 0) {
-          // aggiorna mergedConfig con editValues sovrascrivendo i valori
           Object.entries(editValues).forEach(([k, v]) => {
             if (mergedConfig[k]) {
-              mergedConfig[k][0] = v; // aggiorna solo il valore del primo figlio (indice 0)
+              mergedConfig[k][0] = v;
             }
           });
         }
@@ -131,32 +133,8 @@ const EditConfiguration = () => {
     }
 
     load();
-  }, [nodeInfo]);
+  }, [nodeInfo, editValues, loadConfigsChain]);
 
-  // funzione per aprire la modale edit per un campo
-  const openEditModal = (key) => {
-    // prendi il valore originale da mergedConfig
-    const currentVal = config[key]?.[0];
-    setEditKey(key);
-    setEditValue(currentVal ?? '');
-  };
-
-  // funzione salva edit
-  const saveEditValue = () => {
-    setEditValues(prev => ({ ...prev, [editKey]: editValue }));
-
-    // aggiorna config localmente (modifica solo il primo valore)
-    setConfig(prevConfig => {
-      const newConfig = { ...prevConfig };
-      if (newConfig[editKey]) {
-        newConfig[editKey] = [editValue, ...newConfig[editKey].slice(1)];
-      }
-      return newConfig;
-    });
-
-    setEditKey(null);
-    setEditValue('');
-  };
 
   if (!nodeInfo) {
     return (
@@ -194,241 +172,41 @@ const EditConfiguration = () => {
 
   return (
     <>
-      <Box
-        sx={{
-          p: 3,
-          display: 'flex',           // Enables flexbox for horizontal layout
-          alignItems: 'center',      // Vertically aligns items in the center
-          backgroundColor: 'white',  // Sets the background color to white
-          gap: 2,                    // Adds space between the button and breadcrumbs
-        }}
-      >
-        <Button
-          variant="outlined"
-          onClick={() => navigate(-1)}
-          sx={{ mt: 0 }} // Remove top margin as it's handled by parent Box padding
-          startIcon={<ArrowBackIcon />} // Add the icon here
-        >
-          Back
-        </Button>
-
-        <Breadcrumbs aria-label="breadcrumb" sx={{ mb: 0 }}> {/* Remove bottom margin */}
-          {breadcrumb.slice().reverse().map((item, i, arr) => (
-            <Link
-              key={i}
-              underline="hover"
-              color={i === arr.length - 1 ? 'text.primary' : 'inherit'}
-              href="#"
-              onClick={(e) => e.preventDefault()}
-            >
-              {item}
-            </Link>
-          ))}
-        </Breadcrumbs>
-      </Box>
+      <ConfigNavbar breadcrumbItems={breadcrumb} navigate={navigate} />
       <Box sx={{ p: 3 }}>
         <Box>
           {Object.entries(config).map(([key, values], index) => {
             const isEditable = firstConfig && Object.prototype.hasOwnProperty.call(firstConfig, key);
-            const hasFirstChildValue = isEditable;
-            const reversedValues = values.slice().reverse();
-
-            // Alterna sfondo per righe pari/dispari
-            const backgroundColor = index % 2 === 0 ? 'rgba(0,0,0,0)' : 'rgba(0,0,0,0.05)';
-
             return (
-              <Box
+              <ConfigKeyItem
                 key={key}
-                sx={{
-                  mb: 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  flexWrap: 'wrap',
-                  backgroundColor,
-                  borderRadius: 1,
-                  p: 1,
-                }}
-              >
-                {/* Bottone informativo */}
-                <Tooltip title="Lorem ipsum dolor sit amet, consectetur adipiscing elit." arrow>
-                  <IconButton
-                    size="small"
-                    sx={{ mr: 1 }}
-                    aria-label={`Info about ${key}`}
-                  >
-                    <InfoOutlinedIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
-
-                {/* Nome della chiave */}
-                <Typography
-                  variant="body1"
-                  component="div"
-                  sx={{ fontWeight: 'bold', mr: 1, whiteSpace: 'nowrap' }}
-                >
-                  {key}:
-                </Typography>
-
-                {/* Breadcrumb */}
-                <Breadcrumbs
-                  aria-label="breadcrumb"
-                  separator=">"
-                  sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}
-                >
-                  {reversedValues.map((val, i) => {
-                    const short = shortenValue(val);
-                    const isTruncated = short !== (typeof val === 'string' ? val : String(val));
-                    const isFirstChildValue = i === reversedValues.length - 1;
-
-                    return (
-                      <span
-                        key={i}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 4,
-                          backgroundColor: 'white',
-                          border: '1px solid #e0e0e0',
-                          borderRadius: '8px',
-                          padding: '4px 10px',
-                          margin: '0 4px',
-                          boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-                        }}
-                      >
-                        <span
-                          onClick={() => isTruncated && handleOpenFullValue(val)}
-                          style={{
-                            cursor: isTruncated ? 'pointer' : 'default',
-                            textDecoration: isTruncated ? 'underline dotted' : 'none',
-                            whiteSpace: 'nowrap',
-                          }}
-                          title={isTruncated ? 'Click to see full value' : undefined}
-                        >
-                          {short}
-                        </span>
-
-                        {isFirstChildValue && isEditable && (
-                          <Button
-                            onClick={() => openEditModal(key)}
-                            size="small"
-                            sx={{ minWidth: '20px', padding: '2px', marginLeft: '4px' }}
-                            aria-label={`Edit ${key}`}
-                          >
-                            <EditIcon fontSize="small" />
-                          </Button>
-                        )}
-                      </span>
-                    );
-                  })}
-
-                  {!hasFirstChildValue && (
-                    <IconButton
-                      size="small"
-                      onClick={() => handleAddChild(key)}
-                      aria-label={`Add child to ${key}`}
-                      sx={{
-                        ml: 1,
-                        backgroundColor: 'white',
-                        borderRadius: '50%',
-                        boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-                      }}
-                    >
-                      <AddCircleOutlineIcon fontSize="small" />
-                    </IconButton>
-                  )}
-                </Breadcrumbs>
-              </Box>
+                configKey={key}
+                values={values}
+                isEditable={isEditable}
+                openEditModal={openEditModal}
+                handleAddChild={handleAddChild}
+                handleOpenFullValue={handleOpenFullValue}
+                index={index}
+              />
             );
           })}
-
-
-          {/* Campo di testo per aggiungere una nuova chiave */}
-          <Box sx={{ mt: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-            <TextField
-              label="Add new key"
-              variant="outlined"
-              size="small"
-              value={newKey}
-              onChange={handleNewKeyChange}
-              sx={{ flexGrow: 1 }}
-            />
-            <Button variant="contained" onClick={handleAddNewKey} disabled={!newKey.trim()}>
-              Add
-            </Button>
-          </Box>
-        </Box>
-
-        {/* Modal per valore completo */}
-        <Modal
-          open={!!fullValue}
-          onClose={handleCloseFullValue}
-          aria-labelledby="full-value-modal-title"
-          aria-describedby="full-value-modal-description"
-        >
-          <Box
-            sx={{
-              position: 'absolute',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              bgcolor: 'background.paper',
-              borderRadius: 2,
-              boxShadow: 24,
-              p: 3,
-              maxWidth: '90%',
-              maxHeight: '80%',
-              overflowY: 'auto',
-              whiteSpace: 'pre-wrap',
-              outline: 'none',
-            }}
-          >
-            <Typography id="full-value-modal-description" variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
-              {fullValue}
-            </Typography>
-            <Button onClick={handleCloseFullValue} sx={{ mt: 2 }} variant="contained" fullWidth>
-              Close
-            </Button>
-          </Box>
-        </Modal>
-      </Box>
-      <Modal
-        open={!!editKey}
-        onClose={() => setEditKey(null)}
-        aria-labelledby="edit-value-modal-title"
-        aria-describedby="edit-value-modal-description"
-      >
-        <Box
-          sx={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            bgcolor: 'background.paper',
-            borderRadius: 2,
-            boxShadow: 24,
-            p: 3,
-            width: 400,
-            maxWidth: '90%',
-          }}
-        >
-          <Typography id="edit-value-modal-title" variant="h6" gutterBottom>
-            Edit value for: {editKey}
-          </Typography>
-          <textarea
-            style={{ width: '100%', minHeight: 100, fontFamily: 'monospace', fontSize: 14 }}
-            value={editValue}
-            onChange={(e) => setEditValue(e.target.value)}
+          <AddNewConfigKeyInput
+            newKey={newKey}
+            handleNewKeyChange={handleNewKeyChange}
+            handleAddNewKey={handleAddNewKey}
           />
-          <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-            <Button variant="outlined" onClick={() => setEditKey(null)}>
-              Cancel
-            </Button>
-            <Button variant="contained" onClick={saveEditValue}>
-              Save
-            </Button>
-          </Box>
         </Box>
-      </Modal>
+
+        <ShowConfigKeyFullValueModal fullValue={fullValue} handleCloseFullValue={handleCloseFullValue} />
+      </Box>
+
+      <EditConfigKeyValueModal
+        editKey={editKey}
+        editValue={editValue}
+        setEditValue={setEditValue}
+        saveEditValue={saveEditValue}
+        closeEditModal={closeEditModal}
+      />
     </>
   );
 };
