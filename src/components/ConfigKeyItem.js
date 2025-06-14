@@ -3,6 +3,7 @@ import { Typography, Button, Box, Breadcrumbs, IconButton, Tooltip } from '@mui/
 import EditIcon from '@mui/icons-material/Edit';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import definitionData from '../assets/definitions.json';
 
 const shortenValue = (val, maxLen = 20) => {
     const str = typeof val === 'string' ? val : String(val);
@@ -25,6 +26,8 @@ const ConfigKeyItem = ({
     const hasFirstChildValue = isEditable;
     const reversedValues = values.slice().reverse();
     const backgroundColor = index % 2 === 0 ? 'rgba(0,0,0,0)' : 'rgba(0,0,0,0.05)';
+    const tooltipData = definitionData[configKey]?.tooltip;
+    const hasTooltip = Boolean(tooltipData);
 
     return (
         <Box
@@ -38,10 +41,27 @@ const ConfigKeyItem = ({
                 p: 1,
             }}
         >
-            <Tooltip title="Lorem ipsum dolor sit amet, consectetur adipiscing elit." arrow>
-                <IconButton size="small" sx={{ mr: 1 }} aria-label={`Info about ${configKey}`}>
-                    <InfoOutlinedIcon fontSize="small" />
-                </IconButton>
+            <Tooltip
+                title={hasTooltip ? tooltipData : ''}
+                arrow
+                disableHoverListener={!hasTooltip}
+                disableFocusListener={!hasTooltip}
+                disableTouchListener={!hasTooltip}
+            >
+                <span>
+                    <IconButton
+                        size="small"
+                        sx={{
+                            mr: 1,
+                            opacity: hasTooltip ? 1 : 0.3,
+                            pointerEvents: hasTooltip ? 'auto' : 'none', // evita click se disabilitato
+                        }}
+                        aria-label={`Info about ${configKey}`}
+                        disabled={!hasTooltip}
+                    >
+                        <InfoOutlinedIcon fontSize="small" />
+                    </IconButton>
+                </span>
             </Tooltip>
 
             <Typography
