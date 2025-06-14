@@ -54,7 +54,7 @@ const Home = () => {
       sx={{
         display: 'flex',
         flexDirection: 'column',
-        height: 'calc(100vh - 64px)',
+        height: 'calc(100vh - 72px)',
         position: 'relative',
         overflow: 'hidden',
       }}

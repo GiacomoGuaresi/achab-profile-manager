@@ -15,6 +15,8 @@ def extract_cpp_definitions(folder_path):
               dove la chiave è il nome della definizione (es. "line_width")
               e il valore è un altro dizionario con i dettagli della definizione.
     """
+    
+    src_folder_path = os.path.join(folder_path, "src")
     all_definitions = {}
 
     # Regex per trovare un blocco di definizione completo.
@@ -58,7 +60,7 @@ def extract_cpp_definitions(folder_path):
     ]
 
     # Attraversa tutte le cartelle e i file nel percorso specificato
-    for root, _, files in os.walk(folder_path):
+    for root, _, files in os.walk(src_folder_path):
         for file_name in files:
             # Controlla se il file è un file C++
             if file_name.endswith(".cpp"):
@@ -116,19 +118,61 @@ def extract_cpp_definitions(folder_path):
                     print(f"Errore durante l'elaborazione di {file_path}: {e}")
     return all_definitions
 
+def extract_json_keys(folder_path, existing_definitions):
+    """
+    Scansiona i file .json in una cartella specificata (e sottocartelle)
+    ed elenca le loro chiavi nel dizionario delle definizioni, se non già presenti.
+
+    Args:
+        folder_path (str): Il percorso della cartella da scansionare per i file JSON.
+        existing_definitions (dict): Il dizionario delle definizioni esistenti.
+
+    Returns:
+        dict: Il dizionario aggiornato con le chiavi dei file JSON.
+    """
+    json_definitions = existing_definitions.copy()
+    profiles_folder_path = os.path.join(folder_path, "resources", "profiles")
+
+    if not os.path.isdir(profiles_folder_path):
+        print(f"Avviso: La cartella '{profiles_folder_path}' non esiste. Nessun file JSON da elaborare.")
+        return json_definitions
+
+    for root, _, files in os.walk(profiles_folder_path):
+        for file_name in files:
+            if file_name.endswith(".json"):
+                file_path = os.path.join(root, file_name)
+                try:
+                    with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                        data = json.load(f)
+                        for key in data.keys():
+                            if key not in json_definitions:
+                                json_definitions[key] = {
+                                    "file": file_path,
+                                }
+                except json.JSONDecodeError as e:
+                    print(f"Errore di decodifica JSON in '{file_path}': {e}")
+                except Exception as e:
+                    print(f"Errore durante l'elaborazione di {file_path}: {e}")
+    return json_definitions
+
 # Punto di ingresso principale dello script
 if __name__ == "__main__":
     # Chiedi all'utente il percorso della cartella da scansionare
-    folder_to_scan = input("Inserisci il percorso della cartella contenente i file C++: ")
+    folder_to_scan = input("Inserisci il percorso della cartella contenente i file C++ (e la radice per /resources/profiles): ")
 
     # Verifica se il percorso inserito è una directory valida
     if not os.path.isdir(folder_to_scan):
         print(f"Errore: Il percorso '{folder_to_scan}' non è una directory valida.")
     else:
-        # Estrai le definizioni
+        # Estrai le definizioni dai file CPP
         definitions = extract_cpp_definitions(folder_to_scan)
+        print(f"Trovate {len(definitions)} definizioni da file C++.")
 
-        output_file_name = "output.json"
+        # Estrai le chiavi dai file JSON e aggiungile alle definizioni esistenti
+        definitions = extract_json_keys(folder_to_scan, definitions)
+        print(f"Trovate un totale di {len(definitions)} definizioni (incluse quelle da JSON).")
+
+        output_file_name = "../public/definitions.json"
         try:
             # Scrivi le definizioni estratte nel file JSON
             with open(output_file_name, 'w', encoding='utf-8') as json_file:

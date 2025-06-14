@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Typography, Button, Box, Breadcrumbs, Link, Modal, TextField, IconButton } from '@mui/material';
+import { Typography, Button, Box, Breadcrumbs, Link, Modal, TextField, IconButton, Tooltip } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 
 const EditConfiguration = () => {
   const location = useLocation();
@@ -192,12 +194,25 @@ const EditConfiguration = () => {
 
   return (
     <>
-      <Box sx={{ p: 3 }}>
-        <Button variant="outlined" onClick={() => navigate(-1)} sx={{ mt: 3 }}>
+      <Box
+        sx={{
+          p: 3,
+          display: 'flex',           // Enables flexbox for horizontal layout
+          alignItems: 'center',      // Vertically aligns items in the center
+          backgroundColor: 'white',  // Sets the background color to white
+          gap: 2,                    // Adds space between the button and breadcrumbs
+        }}
+      >
+        <Button
+          variant="outlined"
+          onClick={() => navigate(-1)}
+          sx={{ mt: 0 }} // Remove top margin as it's handled by parent Box padding
+          startIcon={<ArrowBackIcon />} // Add the icon here
+        >
           Back
         </Button>
-        {/* ... header, breadcrumb principale */}
-        <Breadcrumbs aria-label="breadcrumb" sx={{ mb: 2 }}>
+
+        <Breadcrumbs aria-label="breadcrumb" sx={{ mb: 0 }}> {/* Remove bottom margin */}
           {breadcrumb.slice().reverse().map((item, i, arr) => (
             <Link
               key={i}
@@ -210,66 +225,122 @@ const EditConfiguration = () => {
             </Link>
           ))}
         </Breadcrumbs>
-
+      </Box>
+      <Box sx={{ p: 3 }}>
         <Box>
-          {Object.entries(config).map(([key, values]) => {
+          {Object.entries(config).map(([key, values], index) => {
             const isEditable = firstConfig && Object.prototype.hasOwnProperty.call(firstConfig, key);
-            const hasFirstChildValue = isEditable; // come definito nel tuo codice
+            const hasFirstChildValue = isEditable;
             const reversedValues = values.slice().reverse();
 
+            // Alterna sfondo per righe pari/dispari
+            const backgroundColor = index % 2 === 0 ? 'rgba(0,0,0,0)' : 'rgba(0,0,0,0.05)';
+
             return (
-              <Box key={key} sx={{ mb: 1, display: 'flex', alignItems: 'center' }}>
-                <Typography variant="body1" component="div" sx={{ flex: 1 }}>
-                  <strong>{key}:</strong>{' '}
-                  <Breadcrumbs aria-label="breadcrumb" separator=">">
-                    {reversedValues.map((val, i) => {
-                      const short = shortenValue(val);
-                      const isTruncated = short !== (typeof val === 'string' ? val : String(val));
-                      const isFirstChildValue = i === reversedValues.length - 1;
+              <Box
+                key={key}
+                sx={{
+                  mb: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  backgroundColor,
+                  borderRadius: 1,
+                  p: 1,
+                }}
+              >
+                {/* Bottone informativo */}
+                <Tooltip title="Lorem ipsum dolor sit amet, consectetur adipiscing elit." arrow>
+                  <IconButton
+                    size="small"
+                    sx={{ mr: 1 }}
+                    aria-label={`Info about ${key}`}
+                  >
+                    <InfoOutlinedIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
 
-                      return (
-                        <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                          <span
-                            onClick={() => isTruncated && handleOpenFullValue(val)}
-                            style={{
-                              cursor: isTruncated ? 'pointer' : 'default',
-                              textDecoration: isTruncated ? 'underline dotted' : 'none',
-                            }}
-                            title={isTruncated ? 'Click to see full value' : undefined}
-                          >
-                            {short}
-                          </span>
-
-                          {isFirstChildValue && isEditable && (
-                            <Button
-                              onClick={() => openEditModal(key)}
-                              size="small"
-                              sx={{ minWidth: '20px', padding: '2px', marginLeft: '4px' }}
-                              aria-label={`Edit ${key}`}
-                            >
-                              <EditIcon fontSize="small" />
-                            </Button>
-                          )}
-                        </span>
-                      );
-                    })}
-
-                    {/* Se NON ha firstChildValue, aggiungo icona + accanto all'ultimo elemento */}
-                    {!hasFirstChildValue && (
-                      <IconButton
-                        size="small"
-                        onClick={() => handleAddChild(key)}
-                        aria-label={`Add child to ${key}`}
-                        sx={{ ml: 1 }}
-                      >
-                        <AddCircleOutlineIcon fontSize="small" />
-                      </IconButton>
-                    )}
-                  </Breadcrumbs>
+                {/* Nome della chiave */}
+                <Typography
+                  variant="body1"
+                  component="div"
+                  sx={{ fontWeight: 'bold', mr: 1, whiteSpace: 'nowrap' }}
+                >
+                  {key}:
                 </Typography>
+
+                {/* Breadcrumb */}
+                <Breadcrumbs
+                  aria-label="breadcrumb"
+                  separator=">"
+                  sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}
+                >
+                  {reversedValues.map((val, i) => {
+                    const short = shortenValue(val);
+                    const isTruncated = short !== (typeof val === 'string' ? val : String(val));
+                    const isFirstChildValue = i === reversedValues.length - 1;
+
+                    return (
+                      <span
+                        key={i}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          backgroundColor: 'white',
+                          border: '1px solid #e0e0e0',
+                          borderRadius: '8px',
+                          padding: '4px 10px',
+                          margin: '0 4px',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+                        }}
+                      >
+                        <span
+                          onClick={() => isTruncated && handleOpenFullValue(val)}
+                          style={{
+                            cursor: isTruncated ? 'pointer' : 'default',
+                            textDecoration: isTruncated ? 'underline dotted' : 'none',
+                            whiteSpace: 'nowrap',
+                          }}
+                          title={isTruncated ? 'Click to see full value' : undefined}
+                        >
+                          {short}
+                        </span>
+
+                        {isFirstChildValue && isEditable && (
+                          <Button
+                            onClick={() => openEditModal(key)}
+                            size="small"
+                            sx={{ minWidth: '20px', padding: '2px', marginLeft: '4px' }}
+                            aria-label={`Edit ${key}`}
+                          >
+                            <EditIcon fontSize="small" />
+                          </Button>
+                        )}
+                      </span>
+                    );
+                  })}
+
+                  {!hasFirstChildValue && (
+                    <IconButton
+                      size="small"
+                      onClick={() => handleAddChild(key)}
+                      aria-label={`Add child to ${key}`}
+                      sx={{
+                        ml: 1,
+                        backgroundColor: 'white',
+                        borderRadius: '50%',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+                      }}
+                    >
+                      <AddCircleOutlineIcon fontSize="small" />
+                    </IconButton>
+                  )}
+                </Breadcrumbs>
               </Box>
             );
           })}
+
 
           {/* Campo di testo per aggiungere una nuova chiave */}
           <Box sx={{ mt: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
