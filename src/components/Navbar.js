@@ -7,7 +7,7 @@ import { useFileActions } from '../FileActionsContext';
 
 const Navbar = () => {
   const location = useLocation();
-  const { save, discard } = useFileActions();
+  const { save, discard, openInFileExplorer, openInTextEditor } = useFileActions();
 
   const [anchorEl, setAnchorEl] = useState(null);
   const open = Boolean(anchorEl);
@@ -123,6 +123,31 @@ const Navbar = () => {
               {navigator.platform.toUpperCase().indexOf('MAC') >= 0 ? '⌘+D' : 'Ctrl+D'}
             </Box>
           </MenuItem>
+
+          <MenuItem
+            disabled={!isEditConfigPage}
+            onClick={() => {
+              if (isEditConfigPage) {
+                openInFileExplorer();
+                handleClose();
+              }
+            }}
+          >
+            Open in File Explorer
+          </MenuItem>
+
+          <MenuItem
+            disabled={!isEditConfigPage}
+            onClick={() => {
+              if (isEditConfigPage) {
+                openInTextEditor();
+                handleClose();
+              }
+            }}
+          >
+            Open in Text Editor
+          </MenuItem>
+
           <MenuItem
             component={Link}
             to="/settings"

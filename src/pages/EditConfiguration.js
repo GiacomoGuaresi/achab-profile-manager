@@ -62,6 +62,30 @@ const EditConfiguration = () => {
     window.location.reload();
   };
 
+  const openInFileExplorer = () => {
+    window.api.openInFileExplorer(nodeInfo.data.filePath)
+      .then((res) => {
+        if (!res.success) {
+          window.alert(`Error opening file in file explorer: ${res.error}`);
+        }
+      })
+      .catch((err) => {
+        window.alert(`Error opening file in file explorer: ${err.message}`);
+      });
+  };
+
+  const openInTextEditor = () => {
+    window.api.openInTextEditor(nodeInfo.data.filePath)
+      .then((res) => {
+        if (!res.success) {
+          window.alert(`Error opening file in text editor: ${res.error}`);
+        }
+      })
+      .catch((err) => {
+        window.alert(`Error opening file in text editor: ${err.message}`);
+      });
+  };
+
   const handleOpenFullValue = useCallback((val) => {
     setFullValue(val);
   }, []);
@@ -262,7 +286,7 @@ const EditConfiguration = () => {
   }, [editKey, closeEditModal, firstConfig]);
 
   useEffect(() => {
-    setActions({ save, discard });
+    setActions({ save, discard, openInFileExplorer, openInTextEditor });
 
     if (!nodeInfo?.data?.filePath) return;
 
@@ -308,7 +332,7 @@ const EditConfiguration = () => {
 
     load();
 
-    return () => setActions({ save: () => { }, discard: () => { } });
+    return () => setActions({ save: () => { }, discard: () => { }, openInFileExplorer: () => { }, openInTextEditor: () => { } });
   }, [nodeInfo, loadConfigsChain]);
 
 

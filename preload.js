@@ -9,4 +9,6 @@ contextBridge.exposeInMainWorld('api', {
   readSingleConfig: (filePath) => ipcRenderer.invoke('read-single-config', filePath),
   findConfigByName: (directoryPath, nameToFind) => ipcRenderer.invoke('find-config-by-name', directoryPath, nameToFind),
   saveConfig: (filePath, data) => ipcRenderer.invoke('save-config', filePath, data),
+  openInFileExplorer: (filePath) => ipcRenderer.invoke('open-in-file-explorer', filePath),
+  openInTextEditor: (filePath) => ipcRenderer.invoke('open-in-text-editor', filePath),
 });
