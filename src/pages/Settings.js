@@ -1,8 +1,5 @@
-// src/pages/Settings.js
 import React, { useState, useEffect } from 'react';
 import { Box, Typography, Container, Button, TextField, MenuItem } from '@mui/material';
-
-const { ipcRenderer } = window.require('electron');
 
 const editorOptions = [
   { label: 'Visual Studio Code', value: 'code' },
@@ -16,21 +13,27 @@ const Settings = () => {
   const [editor, setEditor] = useState('');
 
   useEffect(() => {
-    ipcRenderer.invoke('load-settings').then((settings) => {
-      if (settings) {
-        setRepoPath(settings.repoPath || '');
-        setEditor(settings.editor || '');
-      }
+    window.api.loadSettings().then((settings) => {
+      setRepoPath(settings.repoPath || '');
+      setEditor(settings.editor || '');
     });
   }, []);
 
   const handleSelectFolder = async () => {
-    const path = await ipcRenderer.invoke('select-repo-folder');
-    if (path) setRepoPath(path);
+    const selectedPath = await window.api.selectRepoFolder();
+    if (selectedPath) {
+      setRepoPath(selectedPath);
+    }
   };
 
-  const handleSave = () => {
-    ipcRenderer.send('save-settings', { repoPath, editor });
+  const handleSave = async () => {
+    const result = await window.api.saveSettings({ repoPath, editor });
+    if (!result.success) {
+      alert('Error saving settings: ' + result.error);
+    }
+    else {
+      alert('Settings saved successfully!');
+    }
   };
 
   return (
@@ -41,17 +44,17 @@ const Settings = () => {
         </Typography>
 
         <Box sx={{ my: 2 }}>
-          <Typography variant="subtitle1">Repository OrcaSlicer</Typography>
+          <Typography variant="subtitle1">OrcaSlicer Folder</Typography>
           <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
             <TextField fullWidth value={repoPath} disabled />
             <Button variant="outlined" onClick={handleSelectFolder}>
-              Seleziona cartella
+              Browse...
             </Button>
           </Box>
         </Box>
 
         <Box sx={{ my: 2 }}>
-          <Typography variant="subtitle1">Editor di testo preferito</Typography>
+          <Typography variant="subtitle1">Preferred Text Editor</Typography>
           <TextField
             select
             fullWidth
@@ -68,7 +71,7 @@ const Settings = () => {
         </Box>
 
         <Button variant="contained" onClick={handleSave}>
-          Salva impostazioni
+          Save Settings
         </Button>
       </Box>
     </Container>

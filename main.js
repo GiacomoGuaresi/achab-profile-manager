@@ -1,7 +1,9 @@
 // main.js (esempio)
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
-const fs = require('fs/promises'); // Usa le promesse per un'interfaccia più pulita
+const fs = require('fs/promises');
+const { exec } = require('child_process');
+const settingsFilePath = path.join(app.getPath('userData'), 'settings.json');
 
 let mainWindow;
 
@@ -14,7 +16,7 @@ function createWindow() {
       contextIsolation: true, // Importante per la sicurezza
       nodeIntegration: false,
     },
-    icon: path.join(__dirname, 'assets/logo.png') 
+    icon: path.join(__dirname, 'assets/logo.png')
   });
 
   mainWindow.loadFile(path.join(__dirname, 'public/index.html'));
@@ -38,9 +40,6 @@ app.on('window-all-closed', () => {
 });
 
 // --- IPC Handlers ---
-
-// Percorso radice per i profili (deve corrispondere a quello nel frontend)
-const PROFILES_ROOT_PATH = 'C:\\Users\\guare\\source\\gingerRepos\\OrcaSlicer\\resources\\profiles';
 
 /**
  * Legge ricorsivamente i file JSON da una directory e costruisce il grafo.
@@ -129,6 +128,18 @@ function buildProfileGraph(profilesData) {
   return { nodes, edges };
 }
 
+async function getProfilesRootPath() {
+  try {
+    const settingsData = await fs.readFile(settingsFilePath, 'utf-8');
+    const settings = JSON.parse(settingsData);
+    if (settings.repoPath) {
+      // Usa path.join per gestire correttamente i separatori anche su Windows
+      return path.join(settings.repoPath, 'resources', 'profiles');
+    }
+  } catch (error) {
+    console.error('Errore nel caricamento settings per profiles root path:', error);
+  }
+}
 
 
 // IPC Handler per ottenere le cartelle dei vendor (top-level directories)
@@ -147,7 +158,8 @@ ipcMain.handle('get-vendor-folders', async (event, rootPath) => {
 
 // IPC Handler per leggere i profili di un vendor e costruire il grafo
 ipcMain.handle('read-vendor-profiles', async (event, vendorName) => {
-  const vendorPath = path.join(PROFILES_ROOT_PATH, vendorName);
+  const profilesRootPath = await getProfilesRootPath();
+  const vendorPath = path.join(profilesRootPath, vendorName);
   try {
     const allProfiles = await readJsonFilesRecursively(vendorPath);
     const graph = buildProfileGraph(allProfiles);
@@ -234,7 +246,7 @@ ipcMain.handle('find-config-by-name', async (event, directoryPath, nameToFind) =
   try {
     // directoryPath deve essere assoluto
     const files = await fs.readdir(directoryPath);
-    
+
     for (const file of files) {
       if (file.endsWith('.json')) {
         const fullPath = path.join(directoryPath, file); // directoryPath deve essere assoluto e valido
@@ -261,8 +273,92 @@ ipcMain.handle('save-config', async (event, filePath, data) => {
     const absolutePath = path.resolve(filePath);
     await fs.writeFile(absolutePath, JSON.stringify(data, null, 2), 'utf-8');
     return { success: true };
-  } catch (error) { 
+  } catch (error) {
     console.error('Error saving config:', error);
     return { success: false, error: error.message };
   }
+});
+
+ipcMain.handle('open-in-file-explorer', async (event, filePath) => {
+  const absolutePath = path.resolve(filePath);
+  try {
+    const { shell } = require('electron');
+    await shell.showItemInFolder(absolutePath);
+    return { success: true };
+  } catch (error) {
+    console.error('Error opening in file explorer:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('open-in-text-editor', async (event, filePath) => {
+  try {
+    let settings = {};
+    try {
+      await fs.access(settingsFilePath);
+      const settingsContent = await fs.readFile(settingsFilePath, 'utf-8');
+      settings = JSON.parse(settingsContent);
+    } catch (err) {
+      // Il file non esiste o non è leggibile: fallback
+      settings = {};
+    }
+
+    const editor = settings.editor || 'code'; // fallback a VSCode
+    spawn(editor, [filePath], { detached: true, stdio: 'ignore' }).unref();
+
+    return { success: true };
+  } catch (error) {
+    console.error('Errore apertura file:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('select-repo-folder', async () => {
+  const result = await dialog.showOpenDialog({
+    properties: ['openDirectory'],
+  });
+  return result.canceled ? null : result.filePaths[0];
+});
+
+ipcMain.handle('load-settings', async () => {
+  try {
+    // Verifica se il file esiste
+    await fs.access(settingsFilePath);
+    const data = await fs.readFile(settingsFilePath, 'utf-8');
+    return JSON.parse(data);
+  } catch (error) {
+    console.error('Errore nel caricamento settings:', error);
+    return {};
+  }
+});
+
+ipcMain.handle('save-settings', async (event, settings) => {
+  try {
+    await fs.writeFile(settingsFilePath, JSON.stringify(settings, null, 2), 'utf-8');
+    return { success: true };
+  } catch (error) {
+    console.error('Errore nel salvataggio settings:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('clone-repo', async (event, repoUrl, clonePath) => {
+  return new Promise((resolve, reject) => {
+    clonePath = path.join(clonePath, 'OrcaSlicer');
+    exec(`git clone ${repoUrl} "${clonePath}"`, (error, stdout, stderr) => {
+      if (error) {
+        console.error('Errore durante il clone del repository:', error);
+        return reject(error);
+      }
+      console.log('Repository cloned successfully:', stdout);
+      resolve();
+    });
+  });
+});
+
+ipcMain.handle('select-folder', async () => {
+  const result = await dialog.showOpenDialog({
+    properties: ['openDirectory'],
+  });
+  return result.canceled ? null : result.filePaths[0];
 });
