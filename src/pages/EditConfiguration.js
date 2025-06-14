@@ -1,6 +1,7 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Typography, Button, Box } from '@mui/material';
+import { useFileActions } from '../FileActionsContext';
 
 import ConfigKeyItem from '../components/ConfigKeyItem';
 import ConfigNavbar from '../components/ConfigNavbar';
@@ -14,12 +15,15 @@ const cleanString = (val) => {
 };
 
 const EditConfiguration = () => {
+  const { setActions } = useFileActions();
   const location = useLocation();
   const navigate = useNavigate();
 
   const nodeInfo = location.state?.nodeInfo;
 
   const [config, setConfig] = useState(null);
+  const draftCopyRef = useRef({});
+  const [changedKeys, setChangedKeys] = React.useState({});
   const [breadcrumb, setBreadcrumb] = useState([]);
   const [error, setError] = useState(null);
   const [fullValue, setFullValue] = useState(null);
@@ -29,6 +33,28 @@ const EditConfiguration = () => {
   const [editKey, setEditKey] = useState(null);
   const [editValue, setEditValue] = useState('');
   const [newKey, setNewKey] = useState('');
+
+  const save = () => {
+    window.api.saveConfig(nodeInfo.data.filePath, draftCopyRef.current)
+      .then((res) => {
+        if (res.success) {
+          window.alert("Configuration saved successfully!");
+          setChangedKeys({});
+          // Reload the page to reflect changes
+          window.location.reload();
+        } else {
+          window.alert(`Error saving configuration: ${res.error}`);
+        }
+      })
+      .catch((err) => {
+        window.alert(`Error saving configuration: ${err.message}`);
+      });
+  };
+
+  const discard = () => {
+    // reload the page to discard changes
+    window.location.reload();
+  };
 
   const handleOpenFullValue = useCallback((val) => {
     setFullValue(val);
@@ -65,7 +91,35 @@ const EditConfiguration = () => {
   }, []);
 
   const handleAddChild = useCallback((key) => {
-    console.log('Add child for key:', key);
+    const emptyValue = '""'; // o '{}', o altro valore JSON vuoto
+
+    const parsedEmptyValue = JSON.parse(emptyValue);
+
+    // Aggiorna draftCopyRef aggiungendo il nuovo valore vuoto in cima all'array per la chiave
+    draftCopyRef.current = {
+      ...draftCopyRef.current,
+      [key]: draftCopyRef.current[key] ? [parsedEmptyValue, ...[].concat(draftCopyRef.current[key])] : [parsedEmptyValue]
+    };
+
+    // Aggiorna firstConfig impostando il valore vuoto come nuovo valore "principale" per la chiave
+    setFirstConfig(prev => ({
+      ...prev,
+      [key]: parsedEmptyValue,
+    }));
+
+    // Aggiorna lo stato config aggiungendo il nuovo valore vuoto in cima alla lista valori
+    setConfig(prevConfig => {
+      const newConfig = { ...prevConfig };
+      if (newConfig[key]) {
+        newConfig[key] = [emptyValue, ...newConfig[key]];
+      } else {
+        newConfig[key] = [emptyValue];
+      }
+      return newConfig;
+    });
+
+    // Segna la chiave come modificata
+    setChangedKeys(prev => ({ ...prev, [key]: true }));
   }, []);
 
   const handleNewKeyChange = useCallback((e) => {
@@ -73,9 +127,41 @@ const EditConfiguration = () => {
   }, []);
 
   const handleAddNewKey = useCallback(() => {
-    console.log('Add new key:', newKey);
+    if (!newKey.trim()) {
+      window.alert("Key cannot be empty");
+      return;
+    }
+
+    // Se la chiave esiste già, avvisa e non fare nulla
+    if (config && config.hasOwnProperty(newKey)) {
+      window.alert(`Key "${newKey}" already exists.`);
+      return;
+    }
+
+    // Aggiungi la nuova chiave con array vuoto temporaneo (poi handleAddChild aggiungerà il valore)
+    setConfig(prevConfig => ({
+      ...prevConfig,
+      [newKey]: [],
+    }));
+
+    // Aggiorna firstConfig con chiave nuova e valore vuoto (ad es. "")
+    setFirstConfig(prev => ({
+      ...prev,
+      [newKey]: '',
+    }));
+
+    // Aggiungi la nuova chiave anche a draftCopyRef con valore vuoto (per coerenza)
+    draftCopyRef.current = {
+      ...draftCopyRef.current,
+      [newKey]: '',
+    };
+
+    // Chiama handleAddChild per aggiungere valore vuoto come primo elemento per la nuova chiave
+    handleAddChild(newKey);
+
+    // Reset input
     setNewKey('');
-  }, [newKey]);
+  }, [newKey, config, handleAddChild]);
 
   const openEditModal = useCallback((key) => {
     const currentVal = config[key]?.[0];
@@ -89,7 +175,18 @@ const EditConfiguration = () => {
   }, []);
 
   const saveEditValue = useCallback(() => {
-    setEditValues(prev => ({ ...prev, [editKey]: editValue }));
+    draftCopyRef.current = { ...draftCopyRef.current, [editKey]: editValue };
+
+    try {
+      draftCopyRef.current = {
+        ...draftCopyRef.current,
+        [editKey]: JSON.parse(editValue)
+      };
+    } catch (e) {
+      window.alert("Invalid JSON string:", editValue, e);
+      return;
+    }
+
     setConfig(prevConfig => {
       const newConfig = { ...prevConfig };
       if (newConfig[editKey]) {
@@ -97,10 +194,15 @@ const EditConfiguration = () => {
       }
       return newConfig;
     });
+
+    setChangedKeys(prev => ({ ...prev, [editKey]: true }));
+
     closeEditModal();
   }, [editKey, editValue, closeEditModal]);
 
   useEffect(() => {
+    setActions({ save, discard });
+
     if (!nodeInfo?.data?.filePath) return;
 
     async function load() {
@@ -111,8 +213,10 @@ const EditConfiguration = () => {
         const allKeys = new Set(chain.flatMap(cfg => Object.keys(cfg)));
         const mergedConfig = {};
 
+        draftCopyRef.current = { ...chain[0] };
+
         allKeys.forEach((key) => {
-          const valuesChain = chain.map(cfg => cfg[key]).filter(v => v !== undefined);
+          const valuesChain = chain.map(cfg => cfg[key]).filter(v => v !== undefined).map(v => JSON.stringify(v));
           mergedConfig[key] = valuesChain;
         });
 
@@ -124,7 +228,16 @@ const EditConfiguration = () => {
           });
         }
 
-        setConfig(mergedConfig);
+        // Sort mergedConfig alphabetically
+        const sortedConfig = Object.keys(mergedConfig)
+          .sort()
+          .reduce((obj, key) => {
+            obj[key] = mergedConfig[key];
+            return obj;
+          }, {});
+          
+      
+        setConfig(sortedConfig);
         setBreadcrumb(breadcrumbItems);
         setError(null);
       } catch (err) {
@@ -133,7 +246,9 @@ const EditConfiguration = () => {
     }
 
     load();
-  }, [nodeInfo, editValues, loadConfigsChain]);
+
+    return () => setActions({ save: () => { }, discard: () => { } });
+  }, [nodeInfo, loadConfigsChain]);
 
 
   if (!nodeInfo) {
@@ -187,6 +302,7 @@ const EditConfiguration = () => {
                 handleAddChild={handleAddChild}
                 handleOpenFullValue={handleOpenFullValue}
                 index={index}
+                changedKeys={changedKeys}
               />
             );
           })}

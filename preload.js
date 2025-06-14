@@ -8,4 +8,5 @@ contextBridge.exposeInMainWorld('api', {
   deleteProfile: (filePath) => ipcRenderer.invoke('delete-profile', filePath),
   readSingleConfig: (filePath) => ipcRenderer.invoke('read-single-config', filePath),
   findConfigByName: (directoryPath, nameToFind) => ipcRenderer.invoke('find-config-by-name', directoryPath, nameToFind),
+  saveConfig: (filePath, data) => ipcRenderer.invoke('save-config', filePath, data),
 });

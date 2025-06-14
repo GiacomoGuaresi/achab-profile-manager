@@ -19,7 +19,8 @@ const ConfigKeyItem = ({
     openEditModal,
     handleAddChild,
     handleOpenFullValue,
-    index
+    index,
+    changedKeys
 }) => {
     const hasFirstChildValue = isEditable;
     const reversedValues = values.slice().reverse();
@@ -60,6 +61,7 @@ const ConfigKeyItem = ({
                     const short = shortenValue(val);
                     const isTruncated = short !== (typeof val === 'string' ? val : String(val));
                     const isFirstChildValue = i === reversedValues.length - 1;
+                    const isChanged = isFirstChildValue && changedKeys[configKey];
 
                     return (
                         <span
@@ -69,11 +71,12 @@ const ConfigKeyItem = ({
                                 alignItems: 'center',
                                 gap: 4,
                                 backgroundColor: 'white',
-                                border: '1px solid #e0e0e0',
+                                border: isChanged ? '2px solid orange' : '1px solid #e0e0e0',
                                 borderRadius: '8px',
                                 padding: '4px 10px',
                                 margin: '0 4px',
                                 boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+                                color: isChanged ? 'orange' : 'inherit',
                             }}
                         >
                             <span

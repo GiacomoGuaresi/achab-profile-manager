@@ -255,3 +255,14 @@ ipcMain.handle('find-config-by-name', async (event, directoryPath, nameToFind) =
     return { success: false, error: error.message };
   }
 });
+
+ipcMain.handle('save-config', async (event, filePath, data) => {
+  try {
+    const absolutePath = path.resolve(filePath);
+    await fs.writeFile(absolutePath, JSON.stringify(data, null, 2), 'utf-8');
+    return { success: true };
+  } catch (error) { 
+    console.error('Error saving config:', error);
+    return { success: false, error: error.message };
+  }
+});
