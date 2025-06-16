@@ -45,7 +45,7 @@ jobs:
 
       - name: Build Electron app
         env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}2
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: npm run electron:build
 
       - name: Upload artifacts
