@@ -158,10 +158,4 @@ packages
 # Local History for Visual Studio Code
 .history/
 scripts/output.json
-build/asset-manifest.json
-build/index.html
-build/static/css/main.f440ca3f.css
-build/static/css/main.f440ca3f.css.map
-build/static/js/main.8e587117.js
-build/static/js/main.8e587117.js.LICENSE.txt
-build/static/js/main.8e587117.js.map
+build/*

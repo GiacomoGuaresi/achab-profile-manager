@@ -1,11 +1,11 @@
 {
   "name": "achab-profile-manager",
   "version": "1.0.0",
-  "main": "main.js",
+  "main": "public/electron.js",
   "scripts": {
     "start": "electron .",
     "react-build": "webpack --config webpack.config.js",
-    "dev": "npm run react-build && npm run start",
+    "dev": "npm run react-build && electron .",
     "build": "react-scripts build",
     "electron:build": "electron-builder --publish always"
   },
@@ -21,7 +21,6 @@
     "css-loader": "^7.1.2",
     "electron": "^36.4.0",
     "electron-builder": "^26.0.12",
-    "electron-rebuild": "^3.2.9",
     "html-webpack-plugin": "^5.6.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -52,7 +51,7 @@
     },
     "files": [
       "build/**/*",
-      "main.js"
+      "build/electron.js"
     ],
     "win": {
       "target": "nsis"

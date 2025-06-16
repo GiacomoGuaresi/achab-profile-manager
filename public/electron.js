@@ -19,7 +19,7 @@ function createWindow() {
     icon: path.join(__dirname, 'assets/logo.png')
   });
 
-  mainWindow.loadFile(path.join(__dirname, 'public/index.html'));
+  mainWindow.loadFile(path.join(__dirname, 'index.html'));
   // mainWindow.webContents.openDevTools(); // Abilita i DevTools di Electron per il debug
 }
 
