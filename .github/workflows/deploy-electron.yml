@@ -40,12 +40,45 @@ jobs:
             echo "Version already set to $VERSION"
           fi
 
+      - name: Build React app
+        run: npm run build
+
+      - name: Build Electron app
+        run: npm run electron:build
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ runner.os }}-artifacts
+          path: |
+            dist/*.exe
+            dist/*.dmg
+            dist/*.AppImage
+          if-no-files-found: warn
+
+  release:
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+
       - name: Generate changelog from commits
         id: changelog
         run: |
           VERSION="${{ github.event.inputs.version }}"
           PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
-
           echo "CHANGELOG<<EOF" >> $GITHUB_ENV
 
           if [ -z "$PREV_TAG" ]; then
@@ -61,19 +94,8 @@ jobs:
       - name: Create and push git tag
         run: |
           VERSION="${{ github.event.inputs.version }}"
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag "v$VERSION"
           git push origin "v$VERSION"
-
-      - name: Build React app
-        run: npm run build
-
-      - name: Build and publish Electron app
-        env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
-        run: |
-          npm run electron:build
 
       - name: Create GitHub release
         env:
@@ -82,4 +104,4 @@ jobs:
           gh release create "v${{ github.event.inputs.version }}" \
             --title "v${{ github.event.inputs.version }}" \
             --notes "${{ env.CHANGELOG }}" \
-            dist/*.exe dist/*.dmg dist/*.AppImage
+            ./artifacts/**/*.exe ./artifacts/**/*.dmg ./artifacts/**/*.AppImage
