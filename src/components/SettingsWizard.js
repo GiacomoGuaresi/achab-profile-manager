@@ -13,6 +13,7 @@ import {
   Select,
   MenuItem,
 } from '@mui/material';
+import logo from '../assets/logo.svg';
 
 const editorOptions = [
   { label: 'Visual Studio Code', value: 'code' },
@@ -134,7 +135,7 @@ const SettingsWizard = ({ onComplete }) => {
             <Typography variant="h4" component="h2" gutterBottom sx={{ fontWeight: 'bold', mb: 1 }}>
               Welcome to
             </Typography>
-            <Box component="img" src="../assets/logo.svg" alt="Editor Logo" sx={{ height: 100 }} />
+            <Box component="img" src={logo} alt="Editor Logo" sx={{ height: 100 }} />
             <Typography variant="h3" component="h1" gutterBottom sx={{ fontWeight: 'bold', mb: 1 }}>
               Achab Profile Manager
             </Typography>
