@@ -1,4 +1,4 @@
-name: Manual Electron Multi-Platform Release
+name: Release
 
 on:
   workflow_dispatch:
@@ -11,7 +11,45 @@ permissions:
   contents: write
 
 jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Generate changelog from commits
+        id: changelog
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+
+          if [ -z "$PREV_TAG" ]; then
+            LOG=$(git log --pretty=format:"- %s")
+          else
+            LOG=$(git log "$PREV_TAG"..HEAD --pretty=format:"- %s")
+          fi
+
+          {
+            echo "CHANGELOG<<EOF"
+            echo "## $VERSION"
+            echo "$LOG"
+            echo "EOF"
+          } >> "$GITHUB_ENV"
+
+      - name: Create and push git tag
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          git tag "v$VERSION"
+          git push origin "v$VERSION"
+
   build:
+    needs: release
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -58,7 +96,7 @@ jobs:
             dist/*.AppImage
           if-no-files-found: warn
 
-  release:
+  final-release:
     runs-on: ubuntu-latest
     needs: build
 
@@ -66,40 +104,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Setup Git
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
           path: ./artifacts
-
-      - name: Generate changelog from commits
-        id: changelog
-        run: |
-          VERSION="${{ github.event.inputs.version }}"
-          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
-
-          if [ -z "$PREV_TAG" ]; then
-            LOG=$(git log --pretty=format:"- %s")
-          else
-            LOG=$(git log "$PREV_TAG"..HEAD --pretty=format:"- %s")
-          fi
-
-          {
-            echo "CHANGELOG<<EOF"
-            echo "## $VERSION"
-            echo "$LOG"
-            echo "EOF"
-          } >> "$GITHUB_ENV"
-
-      - name: Create and push git tag
-        run: |
-          VERSION="${{ github.event.inputs.version }}"
-          git tag "v$VERSION"
-          git push origin "v$VERSION"
 
       - name: Create GitHub release
         env:
