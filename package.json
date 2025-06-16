@@ -2,12 +2,13 @@
   "name": "achab-profile-manager",
   "version": "1.0.0",
   "main": "public/electron.js",
+  "homepage": "./",
   "scripts": {
     "start": "electron .",
     "react-build": "webpack --config webpack.config.js",
     "dev": "npm run react-build && electron .",
     "build": "react-scripts build",
-    "electron:build": "electron-builder --publish always"
+    "electron:build": "electron-builder"
   },
   "keywords": [],
   "author": "",
@@ -54,21 +55,27 @@
       "build/electron.js"
     ],
     "win": {
-      "target": "nsis"
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "assets/icons/icon.ico"
     },
     "mac": {
-      "target": "dmg"
+      "target": "dmg",
+      "icon": "assets/icons/icon.icns"
     },
     "linux": {
-      "target": "AppImage"
+      "target": "AppImage",
+      "icon": "assets/icons/icon.png"
     },
     "publish": [
-    {
-      "provider": "github",
-      "owner": "GiacomoGuaresi",
-      "repo": "achab-profile-manager"
-    }
-  ]
+      {
+        "provider": "github",
+        "owner": "GiacomoGuaresi",
+        "repo": "achab-profile-manager"
+      }
+    ]
   },
   "browserslist": {
     "production": [

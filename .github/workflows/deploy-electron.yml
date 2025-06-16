@@ -37,6 +37,14 @@ jobs:
             echo "Version already set to $VERSION"
           fi
 
+      - name: Extract changelog for this version
+        id: changelog
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          echo "CHANGELOG<<EOF" >> $GITHUB_ENV
+          awk "/^## $VERSION/{flag=1;next}/^## /{flag=0}flag" CHANGELOG.md >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
       - name: Build React app
         run: npm run build
 
@@ -45,3 +53,12 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
           npm run electron:build
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          gh release create "v${{ github.event.inputs.version }}" \
+            --title "v${{ github.event.inputs.version }}" \
+            --notes "${{ env.CHANGELOG }}" \
+            dist/*.exe dist/*.dmg dist/*.AppImage
