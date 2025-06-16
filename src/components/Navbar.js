@@ -12,6 +12,8 @@ const Navbar = () => {
   const [anchorEl, setAnchorEl] = useState(null);
   const open = Boolean(anchorEl);
 
+  const isEditConfigPage = location.pathname === '/edit-configuration';
+
   const handleClick = (event) => {
     setAnchorEl(event.currentTarget);
   };
@@ -38,10 +40,6 @@ const Navbar = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isEditConfigPage, save, discard]);
-
-
-  // Abilitiamo i menu solo se siamo in /edit-configuration
-  const isEditConfigPage = location.pathname === '/edit-configuration';
 
   return (
     <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center' }}>
