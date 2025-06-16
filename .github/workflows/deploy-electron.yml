@@ -83,15 +83,15 @@ jobs:
           PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
 
           cat <<EOF >> $GITHUB_ENV
-CHANGELOG<<EOF
-## $VERSION
-$(if [ -z "$PREV_TAG" ]; then
-      git log --pretty=format:"- %s"
-    else
-      git log "$PREV_TAG"..HEAD --pretty=format:"- %s"
-    fi)
-EOF
-EOF
+          CHANGELOG<<EOF
+          ## $VERSION
+          $(if [ -z "$PREV_TAG" ]; then
+                git log --pretty=format:"- %s"
+              else
+                git log "$PREV_TAG"..HEAD --pretty=format:"- %s"
+              fi)
+          EOF
+          EOF
 
       - name: Create and push git tag
         run: |
