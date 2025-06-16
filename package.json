@@ -59,15 +59,15 @@
         "nsis",
         "portable"
       ],
-      "icon": "assets/icons/icon.ico"
+      "icon": "assets/icon.ico"
     },
     "mac": {
       "target": "dmg",
-      "icon": "assets/icons/icon.icns"
+      "icon": "assets/icon.icns"
     },
     "linux": {
       "target": "AppImage",
-      "icon": "assets/icons/icon.png"
+      "icon": "assets/icon.png"
     },
     "publish": [
       {
