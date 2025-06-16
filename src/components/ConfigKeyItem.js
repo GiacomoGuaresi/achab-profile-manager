@@ -1,9 +1,13 @@
 import React from 'react';
 import { Typography, Button, Box, Breadcrumbs, IconButton, Tooltip } from '@mui/material';
+
+import definitionData from '../assets/definitions.json';
+
 import EditIcon from '@mui/icons-material/Edit';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import definitionData from '../assets/definitions.json';
+import ReplayIcon from '@mui/icons-material/Replay';
+
 
 const shortenValue = (val, maxLen = 20) => {
     const str = typeof val === 'string' ? val : String(val);
@@ -21,7 +25,8 @@ const ConfigKeyItem = ({
     handleAddChild,
     handleOpenFullValue,
     index,
-    changedKeys
+    changedKeys,
+    handleRestoreValue
 }) => {
     const hasFirstChildValue = isEditable;
     const reversedValues = values.slice().reverse();
@@ -81,8 +86,7 @@ const ConfigKeyItem = ({
                     const short = shortenValue(val);
                     const isTruncated = short !== (typeof val === 'string' ? val : String(val));
                     const isFirstChildValue = i === reversedValues.length - 1;
-                    const isChanged = isFirstChildValue && changedKeys[configKey];
-
+                    const isChanged = isFirstChildValue && changedKeys[configKey] && hasFirstChildValue;
                     return (
                         <span
                             key={i}
@@ -99,6 +103,16 @@ const ConfigKeyItem = ({
                                 color: isChanged ? 'orange' : 'inherit',
                             }}
                         >
+                            {isChanged && (
+                                <Button
+                                    onClick={() => handleRestoreValue(configKey)}
+                                    size="small"
+                                    sx={{ minWidth: '20px', padding: '2px', marginLeft: '4px' }}
+                                    aria-label={`Edit ${configKey}`}
+                                >
+                                    <ReplayIcon fontSize="small" sx={{ color: 'orange' }} />
+                                </Button>
+                            )}
                             <span
                                 onClick={() => isTruncated && handleOpenFullValue(val)}
                                 style={{
@@ -125,21 +139,44 @@ const ConfigKeyItem = ({
                     );
                 })}
 
-                {!hasFirstChildValue && (
-                    <IconButton
-                        size="small"
-                        onClick={() => handleAddChild(configKey)}
-                        aria-label={`Add child to ${configKey}`}
-                        sx={{
-                            ml: 1,
-                            backgroundColor: 'white',
-                            borderRadius: '50%',
-                            boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-                        }}
-                    >
-                        <AddCircleOutlineIcon fontSize="small" />
-                    </IconButton>
-                )}
+                {!hasFirstChildValue && (() => {
+                    const isChanged = changedKeys[configKey];
+                    return (
+                        <span
+                            style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 4,
+                                backgroundColor: 'white',
+                                border: isChanged ? '2px solid orange' : '1px solid #e0e0e0',
+                                borderRadius: '8px',
+                                padding: '4px 10px',
+                                margin: '0 4px',
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+                                color: isChanged ? 'orange' : 'inherit',
+                            }}
+                        >
+                            {isChanged && (
+                                <Button
+                                    onClick={() => handleRestoreValue(configKey)}
+                                    size="small"
+                                    sx={{ minWidth: '20px', padding: '2px', marginRight: '4px' }}
+                                    aria-label={`Edit ${configKey}`}
+                                >
+                                    <ReplayIcon fontSize="small" sx={{ color: 'orange' }} />
+                                </Button>
+                            )}
+                            <Button
+                                onClick={() => handleAddChild(configKey)}
+                                size="small"
+                                sx={{ minWidth: '20px', padding: '2px' }}
+                                aria-label={`Add child to ${configKey}`}
+                            >
+                                <AddCircleOutlineIcon fontSize="small" />
+                            </Button>
+                        </span>
+                    )
+                })()}
             </Breadcrumbs>
         </Box>
     );

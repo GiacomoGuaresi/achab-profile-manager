@@ -23,13 +23,14 @@ const EditConfiguration = () => {
 
   const [config, setConfig] = useState(null);
   const draftCopyRef = useRef({});
+  const originalRef = useRef({});
   const [changedKeys, setChangedKeys] = React.useState({});
+
   const [breadcrumb, setBreadcrumb] = useState([]);
   const [error, setError] = useState(null);
   const [fullValue, setFullValue] = useState(null);
 
   const [firstConfig, setFirstConfig] = useState(null);
-  const [editValues, setEditValues] = useState({});
   const [editKey, setEditKey] = useState(null);
   const [editValue, setEditValue] = useState('');
   const [newKey, setNewKey] = useState('');
@@ -39,6 +40,109 @@ const EditConfiguration = () => {
   const filteredConfigEntries = Object.entries(config || {}).filter(([key]) =>
     key.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+
+  const setValue = useCallback((key, value) => {
+    draftCopyRef.current = { ...draftCopyRef.current, [key]: value };
+
+    try {
+      draftCopyRef.current = {
+        ...draftCopyRef.current,
+        [key]: JSON.parse(value)
+      };
+    } catch (e) {
+      window.alert("Invalid JSON string:", value, e);
+      return;
+    }
+
+    setConfig(prevConfig => {
+      const newConfig = { ...prevConfig };
+      if (newConfig[key]) {
+        newConfig[key] = [value, ...newConfig[key].slice(1)];
+      }
+      return newConfig;
+    });
+
+    if (JSON.stringify(draftCopyRef.current[key]) === JSON.stringify(originalRef.current[key]))
+      setChangedKeys(prev => {
+        const { [key]: _, ...rest } = prev;
+        return rest;
+      });
+    else
+      setChangedKeys(prev => ({ ...prev, [key]: true }));
+
+  }, []);
+
+  const deleteValue = useCallback((key) => {
+    // Se la chiave non esiste o l'array è vuoto, non fare nulla
+    const draftArray = draftCopyRef.current[key];
+    if (!Array.isArray(draftArray) || draftArray.length === 0) return;
+
+    // Rimuove il primo elemento da draftCopyRef
+    const updatedDraftArray = draftArray.slice(1);
+    draftCopyRef.current = {
+      ...draftCopyRef.current,
+      [key]: updatedDraftArray
+    };
+
+    // Aggiorna firstConfig con il nuovo primo valore (o null/undefined se vuoto)
+    setFirstConfig(prev => {
+      const newConfig = { ...prev };
+      delete newConfig[key];
+      return newConfig;
+    });
+
+
+    // Aggiorna config rimuovendo il primo valore
+    setConfig(prevConfig => {
+      const configArray = prevConfig[key];
+      if (!Array.isArray(configArray) || configArray.length === 0) return prevConfig;
+
+      const updatedConfigArray = configArray.slice(1);
+      return {
+        ...prevConfig,
+        [key]: updatedConfigArray
+      };
+    });
+
+    if (originalRef.current[key] == undefined)
+      setChangedKeys(prev => ({ ...prev, [key]: false }));
+    else
+      setChangedKeys(prev => ({ ...prev, [key]: true }));
+  }, []);
+
+  const addValue = useCallback((key) => {
+    const emptyValue = '""'; // o '{}', o altro valore JSON vuoto
+
+    const parsedEmptyValue = JSON.parse(emptyValue);
+
+    // Aggiorna draftCopyRef aggiungendo il nuovo valore vuoto in cima all'array per la chiave
+    draftCopyRef.current = {
+      ...draftCopyRef.current,
+      [key]: draftCopyRef.current[key] ? [parsedEmptyValue, ...[].concat(draftCopyRef.current[key])] : [parsedEmptyValue]
+    };
+
+    // Aggiorna firstConfig impostando il valore vuoto come nuovo valore "principale" per la chiave
+    setFirstConfig(prev => ({
+      ...prev,
+      [key]: parsedEmptyValue,
+    }));
+
+    // Aggiorna lo stato config aggiungendo il nuovo valore vuoto in cima alla lista valori
+    setConfig(prevConfig => {
+      const newConfig = { ...prevConfig };
+      if (newConfig[key]) {
+        newConfig[key] = [emptyValue, ...newConfig[key]];
+      } else {
+        newConfig[key] = [emptyValue];
+      }
+      return newConfig;
+    });
+
+    // Segna la chiave come modificata
+    setChangedKeys(prev => ({ ...prev, [key]: true }));
+  }, []);
+
 
   const save = () => {
     window.api.saveConfig(nodeInfo.data.filePath, draftCopyRef.current)
@@ -121,35 +225,7 @@ const EditConfiguration = () => {
   }, []);
 
   const handleAddChild = useCallback((key) => {
-    const emptyValue = '""'; // o '{}', o altro valore JSON vuoto
-
-    const parsedEmptyValue = JSON.parse(emptyValue);
-
-    // Aggiorna draftCopyRef aggiungendo il nuovo valore vuoto in cima all'array per la chiave
-    draftCopyRef.current = {
-      ...draftCopyRef.current,
-      [key]: draftCopyRef.current[key] ? [parsedEmptyValue, ...[].concat(draftCopyRef.current[key])] : [parsedEmptyValue]
-    };
-
-    // Aggiorna firstConfig impostando il valore vuoto come nuovo valore "principale" per la chiave
-    setFirstConfig(prev => ({
-      ...prev,
-      [key]: parsedEmptyValue,
-    }));
-
-    // Aggiorna lo stato config aggiungendo il nuovo valore vuoto in cima alla lista valori
-    setConfig(prevConfig => {
-      const newConfig = { ...prevConfig };
-      if (newConfig[key]) {
-        newConfig[key] = [emptyValue, ...newConfig[key]];
-      } else {
-        newConfig[key] = [emptyValue];
-      }
-      return newConfig;
-    });
-
-    // Segna la chiave come modificata
-    setChangedKeys(prev => ({ ...prev, [key]: true }));
+    addValue(key);
   }, []);
 
   const handleNewKeyChange = useCallback((e) => {
@@ -205,85 +281,31 @@ const EditConfiguration = () => {
   }, []);
 
   const saveEditValue = useCallback(() => {
-    draftCopyRef.current = { ...draftCopyRef.current, [editKey]: editValue };
-
-    try {
-      draftCopyRef.current = {
-        ...draftCopyRef.current,
-        [editKey]: JSON.parse(editValue)
-      };
-    } catch (e) {
-      window.alert("Invalid JSON string:", editValue, e);
-      return;
-    }
-
-    setConfig(prevConfig => {
-      const newConfig = { ...prevConfig };
-      if (newConfig[editKey]) {
-        newConfig[editKey] = [editValue, ...newConfig[editKey].slice(1)];
-      }
-      return newConfig;
-    });
-
-    setChangedKeys(prev => ({ ...prev, [editKey]: true }));
-
+    setValue(editKey, editValue);
     closeEditModal();
-  }, [editKey, editValue, closeEditModal]);
+  }, [editKey, editValue, setValue]);
+
 
   const deleteEditValue = useCallback(() => {
-    if (!editKey) return;
-
-    setConfig(prevConfig => {
-      const oldValues = prevConfig[editKey] || [];
-      const newValues = oldValues.slice(1); // rimuove il primo valore
-
-      const updatedConfig = { ...prevConfig };
-      if (newValues.length === 0) {
-        delete updatedConfig[editKey];
-      } else {
-        updatedConfig[editKey] = newValues;
-      }
-
-      // Salva prima il valore originale di firstConfig per confronto
-      const firstConfigBefore = { ...firstConfig };
-
-      // Aggiorna firstConfig
-      setFirstConfig(prevFirst => {
-        const updatedFirst = { ...prevFirst };
-        if (newValues.length === 0) {
-          delete updatedFirst[editKey];
-        } else {
-          updatedFirst[editKey] = newValues[0];
-        }
-        return updatedFirst;
-      });
-
-      // Aggiorna draftCopyRef
-      draftCopyRef.current = (() => {
-        const draft = { ...draftCopyRef.current };
-        if (newValues.length === 0) {
-          delete draft[editKey];
-        } else {
-          draft[editKey] = newValues[0];
-        }
-        return draft;
-      })();
-
-      // ✅ Imposta changedKeys correttamente:
-      setChangedKeys(prev => {
-        const newFirst = newValues[0];
-        const original = firstConfigBefore[editKey];
-        return {
-          ...prev,
-          [editKey]: newFirst !== original,
-        };
-      });
-
-      return updatedConfig;
-    });
-
+    deleteValue(editKey);
     closeEditModal();
   }, [editKey, closeEditModal, firstConfig]);
+
+  const handleRestoreValue = useCallback((key) => {
+    const originalValue = originalRef.current[key];
+    if (originalValue !== undefined) {
+      if (draftCopyRef.current[key] === undefined || draftCopyRef.current[key].length == 0)
+        addValue(key);
+
+      const originalString = JSON.stringify(originalValue, null, 2); // bello formattato per l’editor
+      setValue(key, originalString);
+    }
+    else {
+      deleteValue(key);
+    }
+
+  }, [firstConfig, setValue]);
+
 
   useEffect(() => {
     setActions({ save, discard, openInFileExplorer, openInTextEditor });
@@ -299,19 +321,12 @@ const EditConfiguration = () => {
         const mergedConfig = {};
 
         draftCopyRef.current = { ...chain[0] };
+        originalRef.current = { ...chain[0] };
 
         allKeys.forEach((key) => {
           const valuesChain = chain.map(cfg => cfg[key]).filter(v => v !== undefined).map(v => JSON.stringify(v));
           mergedConfig[key] = valuesChain;
         });
-
-        if (Object.keys(editValues).length > 0) {
-          Object.entries(editValues).forEach(([k, v]) => {
-            if (mergedConfig[k]) {
-              mergedConfig[k][0] = v;
-            }
-          });
-        }
 
         // Sort mergedConfig alphabetically
         const sortedConfig = Object.keys(mergedConfig)
@@ -398,6 +413,7 @@ const EditConfiguration = () => {
                 handleOpenFullValue={handleOpenFullValue}
                 index={index}
                 changedKeys={changedKeys}
+                handleRestoreValue={handleRestoreValue}
               />
             );
           })}
