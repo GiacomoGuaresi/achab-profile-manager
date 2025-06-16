@@ -27,6 +27,7 @@ jobs:
         run: npm ci
 
       - name: Bump version (only if different)
+        shell: bash
         run: |
           VERSION="${{ github.event.inputs.version }}"
           CURRENT_VERSION=$(node -p "require('./package.json').version")
