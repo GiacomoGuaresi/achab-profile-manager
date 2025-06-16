@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version (es. 1.0.2)'
+        description: 'Version (e.g., 1.0.2-alpha.0)'
         required: true
 
 jobs:
@@ -24,16 +24,23 @@ jobs:
           node-version: 18
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
-      - name: Set version in package.json
+      - name: Bump version (only if different)
         run: |
-          npm version ${{ github.event.inputs.version }} --no-git-tag-version
+          VERSION="${{ github.event.inputs.version }}"
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          if [ "$CURRENT_VERSION" != "$VERSION" ]; then
+            npm version "$VERSION" --no-git-tag-version
+          else
+            echo "Version already set to $VERSION"
+          fi
 
       - name: Build React app
         run: npm run build
 
-      - name: Build Electron app and publish to GitHub Releases
+      - name: Build and publish Electron app
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
-        run: npm run electron:build
+        run: |
+          npx electron-builder --publish always

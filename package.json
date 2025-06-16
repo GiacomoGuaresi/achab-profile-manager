@@ -1,6 +1,6 @@
 {
   "name": "achab-profile-manager",
-  "version": "1.0.0-alpha.1",
+  "version": "1.0.0",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
