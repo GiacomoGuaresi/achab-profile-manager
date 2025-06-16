@@ -82,16 +82,18 @@ jobs:
           VERSION="${{ github.event.inputs.version }}"
           PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
 
-          cat <<EOF >> $GITHUB_ENV
-          CHANGELOG<<EOF
-          ## $VERSION
-          $(if [ -z "$PREV_TAG" ]; then
-                git log --pretty=format:"- %s"
-              else
-                git log "$PREV_TAG"..HEAD --pretty=format:"- %s"
-              fi)
-          EOF
-          EOF
+          if [ -z "$PREV_TAG" ]; then
+            LOG=$(git log --pretty=format:"- %s")
+          else
+            LOG=$(git log "$PREV_TAG"..HEAD --pretty=format:"- %s")
+          fi
+
+          {
+            echo "CHANGELOG<<EOF"
+            echo "## $VERSION"
+            echo "$LOG"
+            echo "EOF"
+          } >> "$GITHUB_ENV"
 
       - name: Create and push git tag
         run: |
