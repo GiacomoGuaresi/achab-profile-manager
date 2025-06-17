@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Container,
@@ -13,7 +13,9 @@ import {
   Select,
   MenuItem,
 } from '@mui/material';
-import logo from '../assets/logo.svg';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import ErrorIcon from '@mui/icons-material/Error';
+import logoUrl from '../assets/logo.svg';
 
 const editorOptions = [
   { label: 'Visual Studio Code', value: 'code' },
@@ -23,12 +25,43 @@ const editorOptions = [
 ];
 
 const SettingsWizard = ({ onComplete }) => {
+  // Step enumeration:
+  // 0: Welcome
+  // 1: Git check (auto)
+  // 2: Confirm if repo already cloned
+  // 3: Select folder (repo path or clone folder)
+  // 4: Cloning in progress
+  // 5: Choose editor
+
   const [step, setStep] = useState(0);
-  const [hasCloned, setHasCloned] = useState(null); // null = not chosen, true/false = user choice
+  const [hasCloned, setHasCloned] = useState(null); // null = not chosen, true/false user choice
   const [repoPath, setRepoPath] = useState('');
   const [clonePath, setClonePath] = useState('');
   const [isCloning, setIsCloning] = useState(false);
   const [editor, setEditor] = useState('');
+  const [gitAvailable, setGitAvailable] = useState(null); // null = not checked, true/false result
+  const [gitCheckError, setGitCheckError] = useState(null); // string error message if any
+
+  // Check Git availability automatically on step 1
+  useEffect(() => {
+    if (step === 1) {
+      const checkGit = async () => {
+        try {
+          const available = await window.api.checkGit();
+          setGitAvailable(available);
+          if (available) {
+            setGitCheckError(null);
+          } else {
+            setGitCheckError('Git is not installed or not found in PATH.\nPlease install Git and restart the application.');
+          }
+        } catch (err) {
+          setGitAvailable(false);
+          setGitCheckError('Error while checking Git: ' + err.message);
+        }
+      };
+      checkGit();
+    }
+  }, [step]);
 
   const handleSelectFolder = async () => {
     const selectedPath = await window.api.selectRepoFolder();
@@ -45,38 +78,44 @@ const SettingsWizard = ({ onComplete }) => {
     setIsCloning(true);
     try {
       await window.api.cloneRepo('https://github.com/SoftFever/OrcaSlicer', clonePath);
-      setRepoPath(clonePath);
-      setStep(4); // salto al passo editor
+      // path join clonePath + OrcaSlicer
+      const clonedRepoPath = `${clonePath}/OrcaSlicer`;
+      setRepoPath(clonedRepoPath);
+      setStep(5); // vai allo step editor dopo clone
     } catch (err) {
       alert('Failed to clone repository: ' + err.message);
-      setStep(2); // torno alla selezione percorso
+      setStep(3); // torno a selezionare cartella clone/repo
     }
     setIsCloning(false);
   };
 
   const handleNextStep = () => {
-    if (step === 1) {
+    if (step === 0) {
+      setStep(1);
+    } else if (step === 1) {
+      setStep(2);
+    } else if (step === 2) {
       if (hasCloned === null) {
         alert('Please choose an option.');
         return;
       }
-      setStep(2);
-    } else if (step === 2) {
       if (hasCloned) {
         if (!repoPath) {
           alert('Please select your existing OrcaSlicer repository path.');
           return;
         }
-        setStep(4); // salto il clone e vado all'editor
+        setStep(5); // salto clone e vado a editor
       } else {
         if (!clonePath) {
           alert('Please select a folder where to clone the repository.');
           return;
         }
-        setStep(3); // passo a clonare
+        setStep(4); // passo a clonare (cloning)
         handleCloneRepo();
       }
-    } else if (step === 4) {
+    } else if (step === 3) {
+      // questo step ora non usato perché folder select è dentro step 2
+    } else if (step === 5) {
       if (!editor) {
         alert('Please select your preferred text editor.');
         return;
@@ -86,12 +125,17 @@ const SettingsWizard = ({ onComplete }) => {
   };
 
   const handleBackStep = () => {
-    if (step === 2) {
+    if (step === 1) {
+      setStep(0);
+    } else if (step === 2) {
       setStep(1);
-    } else if (step === 3) {
+      setHasCloned(null);
+      setRepoPath('');
+      setClonePath('');
+    } else if (step === 4) {
       setStep(2);
       setIsCloning(false);
-    } else if (step === 4) {
+    } else if (step === 5) {
       setStep(2);
     }
   };
@@ -127,15 +171,21 @@ const SettingsWizard = ({ onComplete }) => {
           bgcolor: 'background.paper',
           boxShadow: 24,
           borderRadius: 2,
+          minHeight: 400,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
         }}
         elevation={10}
       >
+        {/* Step 0 - Welcome */}
         {step === 0 && (
           <Box sx={{ textAlign: 'center', px: 3 }}>
             <Typography variant="h4" component="h2" gutterBottom sx={{ fontWeight: 'bold', mb: 1 }}>
               Welcome to
             </Typography>
-            <Box component="img" src={logo} alt="Editor Logo" sx={{ height: 100 }} />
+            <img src={logoUrl} alt="Logo" style={{ width: 100, height: 100, marginBottom: 16 }} />
             <Typography variant="h3" component="h1" gutterBottom sx={{ fontWeight: 'bold', mb: 1 }}>
               Achab Profile Manager
             </Typography>
@@ -153,9 +203,43 @@ const SettingsWizard = ({ onComplete }) => {
           </Box>
         )}
 
-
+        {/* Step 1 - Git Check automatic */}
         {step === 1 && (
-          <>
+          <Box sx={{ textAlign: 'center', px: 3 }}>
+            <Typography variant="h5" gutterBottom>Checking Git availability...</Typography>
+            {gitAvailable === null && <CircularProgress sx={{ mt: 3, mb: 3 }} size={60} />}
+            {gitAvailable === true && (
+              <Box sx={{ mt: 3, color: 'success.main', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <CheckCircleIcon sx={{ fontSize: 80 }} />
+                <Typography variant="h6" sx={{ mt: 2 }}>
+                  Git is installed and available!
+                </Typography>
+                <Typography variant="body2" sx={{ mt: 1 }}>
+                  Proceeding to next step...
+                </Typography>
+              </Box>
+            )}
+            {gitAvailable === false && (
+              <Box sx={{ mt: 3, color: 'error.main', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <ErrorIcon sx={{ fontSize: 80 }} />
+                <Typography variant="h6" sx={{ mt: 2, whiteSpace: 'pre-line' }}>
+                  {gitCheckError || 'Git is not available. Please install Git and restart the application.'}
+                </Typography>
+                <Button
+                  variant="contained"
+                  sx={{ mt: 3 }}
+                  onClick={() => window.api.openGitDownloadPage?.()}
+                >
+                  Download Git
+                </Button>
+              </Box>
+            )}
+          </Box>
+        )}
+
+        {/* Step 2 - Ask if repo is cloned */}
+        {step === 2 && (
+          <Box sx={{ width: '100%', px: 3 }}>
             <Typography variant="h6" gutterBottom>
               OrcaSlicer Repository Setup
             </Typography>
@@ -168,47 +252,46 @@ const SettingsWizard = ({ onComplete }) => {
               <FormControlLabel value="yes" control={<Radio />} label="Yes, I already have it cloned" />
               <FormControlLabel value="no" control={<Radio />} label="No, please clone it for me" />
             </RadioGroup>
-          </>
+
+            {/* Folder selector: repo or clone */}
+            <Box sx={{ mt: 3 }}>
+              {hasCloned === true && (
+                <>
+                  <Typography>Select your OrcaSlicer repository folder:</Typography>
+                  <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+                    <TextField fullWidth value={repoPath} disabled />
+                    <Button variant="outlined" onClick={handleSelectFolder}>
+                      Browse...
+                    </Button>
+                  </Box>
+                </>
+              )}
+              {hasCloned === false && (
+                <>
+                  <Typography>Select folder where to clone OrcaSlicer repository:</Typography>
+                  <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+                    <TextField fullWidth value={clonePath} disabled placeholder="Select folder" />
+                    <Button variant="outlined" onClick={handleSelectCloneFolder}>
+                      Browse...
+                    </Button>
+                  </Box>
+                </>
+              )}
+            </Box>
+          </Box>
         )}
 
-        {step === 2 && (
-          <>
-            <Typography variant="h6" gutterBottom>
-              Select Folder
-            </Typography>
-            {hasCloned ? (
-              <>
-                <Typography>Select your OrcaSlicer repository folder:</Typography>
-                <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
-                  <TextField fullWidth value={repoPath} disabled />
-                  <Button variant="outlined" onClick={handleSelectFolder}>
-                    Browse...
-                  </Button>
-                </Box>
-              </>
-            ) : (
-              <>
-                <Typography>Select folder where to clone OrcaSlicer repository:</Typography>
-                <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
-                  <TextField fullWidth value={clonePath} disabled placeholder="Select folder" />
-                  <Button variant="outlined" onClick={handleSelectCloneFolder}>
-                    Browse...
-                  </Button>
-                </Box>
-              </>
-            )}
-          </>
-        )}
-
-        {step === 3 && (
+        {/* Step 4 - Cloning in progress */}
+        {step === 4 && (
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <CircularProgress />
             <Typography sx={{ mt: 2 }}>Cloning repository...</Typography>
           </Box>
         )}
 
-        {step === 4 && (
-          <>
+        {/* Step 5 - Choose editor */}
+        {step === 5 && (
+          <Box sx={{ width: '100%', px: 3 }}>
             <Typography variant="h6" gutterBottom>
               Preferred Text Editor
             </Typography>
@@ -230,24 +313,20 @@ const SettingsWizard = ({ onComplete }) => {
                 </MenuItem>
               ))}
             </Select>
-          </>
+          </Box>
         )}
 
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
-          {step > 1 && (
+        {/* Navigation buttons */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4, width: '100%' }}>
+          {step > 0 && step !== 4 && (
             <Button variant="outlined" onClick={handleBackStep}>
               Back
             </Button>
           )}
           <Box sx={{ flexGrow: 1 }} />
-          {step > 0 && step < 4 && (
-            <Button variant="contained" onClick={handleNextStep} disabled={isCloning}>
-              Next
-            </Button>
-          )}
-          {step === 4 && (
+          {step !== 0 && step !== 4 && (step !== 1 || (step === 1 && gitAvailable)) && (
             <Button variant="contained" onClick={handleNextStep}>
-              Finish
+              {step === 5 ? 'Finish' : 'Next'}
             </Button>
           )}
         </Box>

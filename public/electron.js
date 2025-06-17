@@ -362,3 +362,15 @@ ipcMain.handle('select-folder', async () => {
   });
   return result.canceled ? null : result.filePaths[0];
 });
+
+ipcMain.handle('check-git', async () => {
+  return new Promise((resolve) => {
+    exec('git --version', (error, stdout, stderr) => {
+      if (error) {
+        resolve(false);
+      } else {
+        resolve(true);
+      }
+    });
+  });
+});

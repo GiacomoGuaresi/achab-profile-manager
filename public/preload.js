@@ -16,4 +16,5 @@ contextBridge.exposeInMainWorld('api', {
   saveSettings: (settings) => ipcRenderer.invoke('save-settings', settings),
   cloneRepo: (repoUrl, clonePath) => ipcRenderer.invoke('clone-repo', repoUrl, clonePath),
   selectFolder: () => ipcRenderer.invoke('select-folder'),
+  checkGit: () => ipcRenderer.invoke('check-git'),
 });
