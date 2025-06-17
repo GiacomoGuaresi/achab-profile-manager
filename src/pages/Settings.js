@@ -10,24 +10,33 @@ const editorOptions = [
 
 const Settings = () => {
   const [repoPath, setRepoPath] = useState('');
+  const [validatorPath, setValidatorPath] = useState('');
   const [editor, setEditor] = useState('');
 
   useEffect(() => {
     window.api.loadSettings().then((settings) => {
       setRepoPath(settings.repoPath || '');
+      setValidatorPath(settings.validatorPath || '');
       setEditor(settings.editor || '');
     });
   }, []);
 
-  const handleSelectFolder = async () => {
-    const selectedPath = await window.api.selectRepoFolder();
+  const handleSelectRepoFolder = async () => {
+    const selectedPath = await window.api.selectFolder();
     if (selectedPath) {
       setRepoPath(selectedPath);
     }
   };
 
+  const handleSelectValidatorFile = async () => {
+    const selectedPath = await window.api.selectFile();
+    if (selectedPath) {
+      setValidatorPath(selectedPath);
+    }
+  };
+
   const handleSave = async () => {
-    const result = await window.api.saveSettings({ repoPath, editor });
+    const result = await window.api.saveSettings({ repoPath, validatorPath, editor });
     if (!result.success) {
       alert('Error saving settings: ' + result.error);
     }
@@ -47,7 +56,17 @@ const Settings = () => {
           <Typography variant="subtitle1">OrcaSlicer Folder</Typography>
           <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
             <TextField fullWidth value={repoPath} disabled />
-            <Button variant="outlined" onClick={handleSelectFolder}>
+            <Button variant="outlined" onClick={handleSelectRepoFolder}>
+              Browse...
+            </Button>
+          </Box>
+        </Box>
+
+        <Box sx={{ my: 2 }}>
+          <Typography variant="subtitle1">Orca profile validator File</Typography>
+          <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+            <TextField fullWidth value={validatorPath} disabled />
+            <Button variant="outlined" onClick={handleSelectValidatorFile}>
               Browse...
             </Button>
           </Box>

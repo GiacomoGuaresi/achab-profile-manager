@@ -11,10 +11,12 @@ contextBridge.exposeInMainWorld('api', {
   saveConfig: (filePath, data) => ipcRenderer.invoke('save-config', filePath, data),
   openInFileExplorer: (filePath) => ipcRenderer.invoke('open-in-file-explorer', filePath),
   openInTextEditor: (filePath) => ipcRenderer.invoke('open-in-text-editor', filePath),
-  selectRepoFolder: () => ipcRenderer.invoke('select-repo-folder'),
+  selectFile: () => ipcRenderer.invoke('select-file'),
   loadSettings: () => ipcRenderer.invoke('load-settings'),
   saveSettings: (settings) => ipcRenderer.invoke('save-settings', settings),
   cloneRepo: (repoUrl, clonePath) => ipcRenderer.invoke('clone-repo', repoUrl, clonePath),
+  downloadValidator: (downloadPath) => ipcRenderer.invoke('download-validator', downloadPath),
   selectFolder: () => ipcRenderer.invoke('select-folder'),
   checkGit: () => ipcRenderer.invoke('check-git'),
+  runValidation: (type, vendor) => ipcRenderer.invoke('run-validation', type, vendor),
 });

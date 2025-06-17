@@ -4,6 +4,13 @@ const path = require('path');
 const fs = require('fs/promises');
 const { exec } = require('child_process');
 const settingsFilePath = path.join(app.getPath('userData'), 'settings.json');
+const { spawn } = require('child_process');
+const os = require('os');
+const https = require('https');
+const { createWriteStream } = require('fs');
+const { unlink } = require('fs/promises');
+const { pipeline } = require('stream/promises');
+const { promisify } = require('util');
 
 let mainWindow;
 
@@ -128,17 +135,75 @@ function buildProfileGraph(profilesData) {
   return { nodes, edges };
 }
 
-async function getProfilesRootPath() {
+async function getOrcaRootPath() {
   try {
     const settingsData = await fs.readFile(settingsFilePath, 'utf-8');
     const settings = JSON.parse(settingsData);
     if (settings.repoPath) {
-      // Usa path.join per gestire correttamente i separatori anche su Windows
-      return path.join(settings.repoPath, 'resources', 'profiles');
+      return settings.repoPath;
     }
   } catch (error) {
     console.error('Errore nel caricamento settings per profiles root path:', error);
   }
+}
+
+async function getValidatorPath() {
+  try {
+    const settingsData = await fs.readFile(settingsFilePath, 'utf-8');
+    const settings = JSON.parse(settingsData);
+    if (settings.validatorPath) {
+      return settings.validatorPath;
+    }
+  } catch (error) {
+    console.error('Errore nel caricamento settings per validator path:', error);
+  }
+}
+
+function downloadToBuffer(url, maxRedirects = 5) {
+  return new Promise((resolve, reject) => {
+    if (maxRedirects <= 0) return reject(new Error('Too many redirects'));
+
+    https.get(url, (res) => {
+      // Gestione redirect
+      if ([301, 302, 307, 308].includes(res.statusCode)) {
+        const redirectUrl = res.headers.location;
+        if (!redirectUrl) return reject(new Error('Redirect with no location header'));
+        resolve(downloadToBuffer(redirectUrl, maxRedirects - 1));
+        return;
+      }
+
+      if (res.statusCode !== 200) {
+        return reject(new Error(`Download failed: ${url} (${res.statusCode})`));
+      }
+
+      const data = [];
+      res.on('data', chunk => data.push(chunk));
+      res.on('end', () => resolve(Buffer.concat(data)));
+    }).on('error', reject);
+  });
+}
+
+function getLatestReleaseTag() {
+  return new Promise((resolve, reject) => {
+    const options = {
+      hostname: 'api.github.com',
+      path: '/repos/SoftFever/Orca_tools/releases/latest',
+      headers: { 'User-Agent': 'electron-app' }
+    };
+
+    https.get(options, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        if (res.statusCode === 200) {
+          const json = JSON.parse(data);
+          resolve(json.tag_name);
+        } else {
+          reject(new Error(`Failed to fetch release info (${res.statusCode})`));
+        }
+      });
+    }).on('error', reject);
+  });
 }
 
 
@@ -158,7 +223,7 @@ ipcMain.handle('get-vendor-folders', async (event, rootPath) => {
 
 // IPC Handler per leggere i profili di un vendor e costruire il grafo
 ipcMain.handle('read-vendor-profiles', async (event, vendorName) => {
-  const profilesRootPath = await getProfilesRootPath();
+  const profilesRootPath = path.join(await getOrcaRootPath(), 'resources', 'profiles');
   const vendorPath = path.join(profilesRootPath, vendorName);
   try {
     const allProfiles = await readJsonFilesRecursively(vendorPath);
@@ -313,9 +378,23 @@ ipcMain.handle('open-in-text-editor', async (event, filePath) => {
   }
 });
 
-ipcMain.handle('select-repo-folder', async () => {
+ipcMain.handle('select-file', async () => {
+  let filters = [];
+  if (os.platform() === 'win32') {
+    filters = [
+      { name: 'Executable Files', extensions: ['exe'] },
+      { name: 'All Files', extensions: ['*'] }
+    ];
+  }
+  else {
+    filters = [
+      { name: 'All Files', extensions: ['*'] }
+    ];
+  }
+
   const result = await dialog.showOpenDialog({
-    properties: ['openDirectory'],
+    properties: ['openFile'],
+    filters: filters
   });
   return result.canceled ? null : result.filePaths[0];
 });
@@ -356,6 +435,36 @@ ipcMain.handle('clone-repo', async (event, repoUrl, clonePath) => {
   });
 });
 
+ipcMain.handle('download-validator', async (event, downloadPath) => {
+  try {
+    const platform = os.platform();
+    const fileName = platform === 'win32'
+      ? 'OrcaSlicer_profile_validator.exe'
+      : 'OrcaSlicer_profile_validator';
+
+    const tag = await getLatestReleaseTag();
+    const downloadUrl = `https://github.com/SoftFever/Orca_tools/releases/download/${tag}/${fileName}`;
+    const fullPath = path.join(downloadPath, fileName);
+
+    // Scarica tutto in memoria
+    const fileBuffer = await downloadToBuffer(downloadUrl);
+
+    console.log(`Scaricato file da ${downloadUrl} (${fileBuffer.length} bytes)`);
+    console.log(`Salvataggio file in ${fullPath}`);
+
+    // Salva file con fs/promises
+    await fs.writeFile(fullPath, fileBuffer);
+
+    if (platform !== 'win32') {
+      await fs.chmod(fullPath, 0o755);
+    }
+
+    return { success: true, path: fullPath };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
 ipcMain.handle('select-folder', async () => {
   const result = await dialog.showOpenDialog({
     properties: ['openDirectory'],
@@ -371,6 +480,44 @@ ipcMain.handle('check-git', async () => {
       } else {
         resolve(true);
       }
+    });
+  });
+});
+
+ipcMain.handle('run-validation', async (event, type, vendor) => {
+  const orcaRoot = await getOrcaRootPath();
+  const profileRoot = path.join(orcaRoot, 'resources', 'profiles');
+  const pythonScriptPath = path.join(orcaRoot, 'scripts', 'orca_extra_profile_check.py');
+  const orcaValidatorPath = await getValidatorPath();
+
+  let command;
+
+  if (type === 'python') {
+    command = `python "${pythonScriptPath}" ${vendor ? `--vendor="${vendor}"` : ''} --check-filaments --check-materials`;
+  } else if (type === 'validator') {
+    command = `"${orcaValidatorPath}" -p "${profileRoot}" -l 2 ${vendor ? `-v "${vendor}"` : ''}`;
+  } else {
+    return {
+      status: 'failed',
+      output: '[ERROR] Unknown validation type',
+    };
+  }
+
+  console.log(`Running validation command: ${command}`);
+
+  return new Promise((resolve) => {
+    exec(command, { shell: true, cwd: orcaRoot }, (error, stdout, stderr) => {
+      const output = stdout + '\n' + (stderr || '');
+      const status = error ? 'failed' : 'success';
+
+      // Log stderr only if there's an error
+      if (error) {
+        console.warn('Validation completed with errors');
+        console.warn('STDERR:', stderr);
+        console.warn('STDOUT:', stdout);
+      }
+
+      resolve({ status, output });
     });
   });
 });
