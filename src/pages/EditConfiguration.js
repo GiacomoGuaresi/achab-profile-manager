@@ -9,12 +9,15 @@ import ShowConfigKeyFullValueModal from '../components/ShowConfigKeyFullValueMod
 import EditConfigKeyValueModal from '../components/EditConfigKeyValueModal';
 import AddNewConfigKeyInput from '../components/AddNewConfigKeyInput';
 
+import { useNotification } from '../NotificationProvider';
+
 const cleanString = (val) => {
   if (typeof val === 'string') return val.replace(/\n/g, '');
   return String(val);
 };
 
 const EditConfiguration = () => {
+  const { notify } = useNotification();
   const { setActions } = useFileActions();
   const location = useLocation();
   const navigate = useNavigate();
@@ -51,7 +54,7 @@ const EditConfiguration = () => {
         [key]: JSON.parse(value)
       };
     } catch (e) {
-      window.alert("Invalid JSON string:", value, e);
+      notify("Invalid JSON string: " + value, 'error');
       return;
     }
 
@@ -148,16 +151,16 @@ const EditConfiguration = () => {
     window.api.saveConfig(nodeInfo.data.filePath, draftCopyRef.current)
       .then((res) => {
         if (res.success) {
-          window.alert("Configuration saved successfully!");
+          notify("Configuration saved successfully!", 'success');
           setChangedKeys({});
           // Reload the page to reflect changes
           window.location.reload();
         } else {
-          window.alert(`Error saving configuration: ${res.error}`);
+          notify(`Error saving configuration: ${res.error}`, 'error');
         }
       })
       .catch((err) => {
-        window.alert(`Error saving configuration: ${err.message}`);
+        notify(`Error saving configuration: ${err.message}`, 'error');
       });
   };
 
@@ -170,11 +173,11 @@ const EditConfiguration = () => {
     window.api.openInFileExplorer(nodeInfo.data.filePath)
       .then((res) => {
         if (!res.success) {
-          window.alert(`Error opening file in file explorer: ${res.error}`);
+          notify(`Error opening file in file explorer: ${res.error}`, 'error');
         }
       })
       .catch((err) => {
-        window.alert(`Error opening file in file explorer: ${err.message}`);
+        notify(`Error opening file in file explorer: ${err.message}`, 'error');
       });
   };
 
@@ -182,11 +185,11 @@ const EditConfiguration = () => {
     window.api.openInTextEditor(nodeInfo.data.filePath)
       .then((res) => {
         if (!res.success) {
-          window.alert(`Error opening file in text editor: ${res.error}`);
+          notify(`Error opening file in text editor: ${res.error}`, 'error');
         }
       })
       .catch((err) => {
-        window.alert(`Error opening file in text editor: ${err.message}`);
+        notify(`Error opening file in text editor: ${err.message}`, 'error');
       });
   };
 
@@ -234,13 +237,13 @@ const EditConfiguration = () => {
 
   const handleAddNewKey = useCallback(() => {
     if (!newKey.trim()) {
-      window.alert("Key cannot be empty");
+      notify("Key cannot be empty", 'error');
       return;
     }
 
     // Se la chiave esiste già, avvisa e non fare nulla
     if (config && config.hasOwnProperty(newKey)) {
-      window.alert(`Key "${newKey}" already exists.`);
+      notify(`Key "${newKey}" already exists.`, 'error');
       return;
     }
 

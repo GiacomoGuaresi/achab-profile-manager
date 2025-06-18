@@ -9,9 +9,11 @@ import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import { useNavigate } from 'react-router-dom';
+import { useNotification } from '../NotificationProvider';
 
 const NodeDrawer = ({ open, onClose, nodeInfo, reloadGraph }) => {
   const navigate = useNavigate();
+  const { notify } = useNotification();
 
   const [cloneName, setCloneName] = useState('');
   const [childName, setChildName] = useState('');
@@ -25,7 +27,7 @@ const NodeDrawer = ({ open, onClose, nodeInfo, reloadGraph }) => {
 
   const handleClone = async () => {
     if (!nodeInfo?.data?.filePath) {
-      alert("File path not available.");
+      notify('File path not available.', 'error');
       return;
     }
 
@@ -33,13 +35,13 @@ const NodeDrawer = ({ open, onClose, nodeInfo, reloadGraph }) => {
       const result = await window.api.cloneProfile(nodeInfo.data.filePath, cloneName.trim());
       if (result.success) {
         handleCloseCloneDialog();
-        alert(`Profile successfully cloned as "${cloneName.trim()}"`);
+        notify(`Profile successfully cloned as "${cloneName.trim()}"`, 'success');
         reloadGraph();
       } else {
-        alert(`Error cloning profile: ${result.error}`);
+        notify(`Error cloning profile: ${result.error}`, 'error');
       }
     } catch (error) {
-      alert(`Unexpected error: ${error.message}`);
+      notify(`Unexpected error: ${error.message}`, 'error');
     }
   };
 
@@ -52,7 +54,7 @@ const NodeDrawer = ({ open, onClose, nodeInfo, reloadGraph }) => {
 
   const handleAddChild = async () => {
     if (!nodeInfo?.data?.filePath) {
-      alert("File path not available.");
+      notify('File path not available.', 'error');
       return;
     }
 
@@ -60,25 +62,25 @@ const NodeDrawer = ({ open, onClose, nodeInfo, reloadGraph }) => {
       const result = await window.api.addChildProfile(nodeInfo.data.filePath, childName.trim());
       if (result.success) {
         handleCloseAddChildDialog();
-        alert(`Child profile created as "${childName.trim()}"`);
+        notify(`Child profile successfully created as "${childName.trim()}"`, 'success');
         reloadGraph();
       } else {
-        alert(`Error adding child profile: ${result.error}`);
+        notify(`Error adding child profile: ${result.error}`, 'error');
       }
     } catch (error) {
-      alert(`Unexpected error: ${error.message}`);
+      notify(`Unexpected error: ${error.message}`, 'error');
     }
   };
 
   const [confirmDeleteDialogOpen, setConfirmDeleteDialogOpen] = useState(false);
   const handleDelete = () => {
     if (!nodeInfo || !nodeInfo.data?.filePath) {
-      alert('Missing node file path.');
+      notify('Missing node file path.', 'error');
       return;
     }
 
     if (nodeInfo.children && nodeInfo.children.length > 0) {
-      alert('This profile has children and cannot be deleted.');
+      notify('This profile has children and cannot be deleted.', 'error');
       return;
     }
 
@@ -93,16 +95,16 @@ const NodeDrawer = ({ open, onClose, nodeInfo, reloadGraph }) => {
         if (typeof reloadGraph === 'function') reloadGraph();
         onClose();
       } else {
-        alert(result.error || 'Failed to delete profile.');
+        notify(`Error deleting profile: ${result.error}`, 'error');
       }
     } catch (err) {
-      alert(err.message || 'Unexpected error during deletion.');
+      notify(`Unexpected error: ${err.message}`, 'error');
     }
   };
 
   const handleEdit = () => {
     if (!nodeInfo) {
-      alert("No node selected");
+      notify('No node selected.', 'error');
       return;
     }
     // Passa i dati del nodo alla pagina edit via state

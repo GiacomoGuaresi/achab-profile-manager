@@ -1,220 +1,228 @@
-  import React, { useState, useEffect } from 'react';
-  import {
-    Box,
-    Container,
-    Typography,
-    Button,
-    TextField,
-    RadioGroup,
-    FormControlLabel,
-    Radio,
-    CircularProgress,
-    Paper,
-    Select,
-    MenuItem,
-  } from '@mui/material';
-  import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-  import ErrorIcon from '@mui/icons-material/Error';
-  import logoUrl from '../assets/logo.svg';
+import React, { useState, useEffect } from 'react';
+import {
+  Box,
+  Container,
+  Typography,
+  Button,
+  TextField,
+  RadioGroup,
+  FormControlLabel,
+  Radio,
+  CircularProgress,
+  Paper,
+  Select,
+  MenuItem,
+} from '@mui/material';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import ErrorIcon from '@mui/icons-material/Error';
+import logoUrl from '../assets/logo.svg';
+import { useNotification } from '../NotificationProvider';
 
-  const editorOptions = [
-    { label: 'Visual Studio Code', value: 'code' },
-    { label: 'Sublime Text', value: 'subl' },
-    { label: 'Notepad++', value: 'notepad++' },
-    { label: 'Atom', value: 'atom' },
-  ];
+const editorOptions = [
+  { label: 'Visual Studio Code', value: 'code' },
+  { label: 'Sublime Text', value: 'subl' },
+  { label: 'Notepad++', value: 'notepad++' },
+  { label: 'Atom', value: 'atom' },
+];
 
-  const SettingsWizard = ({ onComplete }) => {
-    // Step enumeration:
-    // 0: Welcome
-    // 1: Git check (auto)
-    // 2: Confirm if repo already cloned
-    // 3: Select folder (repo path or clone folder)
-    // 4: Cloning in progress
-    // 5: Choose editor
-    // 6: Confirm if validator already downloaded
-    // 7: Downloading validator
-    // 8: Finish
+const SettingsWizard = ({ onComplete }) => {
+  // Step enumeration:
+  // 0: Welcome
+  // 1: Git check (auto)
+  // 2: Confirm if repo already cloned
+  // 3: Select folder (repo path or clone folder)
+  // 4: Cloning in progress
+  // 5: Choose editor
+  // 6: Confirm if validator already downloaded
+  // 7: Downloading validator
+  // 8: Finish
+  const { notify } = useNotification();
 
-    const [step, setStep] = useState(0);
-    const [hasCloned, setHasCloned] = useState(null); // null = not chosen, true/false user choice
-    const [hasDownloaded, setHasDownloaded] = useState(null); // null = not chosen, true/false user choice
-    const [repoPath, setRepoPath] = useState('');
-    const [validatorPath, setValidatorPath] = useState('');
-    const [clonePath, setClonePath] = useState('');
-    const [downloadPath, setDownloadPath] = useState('');
-    const [isCloning, setIsCloning] = useState(false);
-    const [isDownloading, setIsDownloading] = useState(false);
-    const [editor, setEditor] = useState('');
-    const [gitAvailable, setGitAvailable] = useState(null); // null = not checked, true/false result
-    const [gitCheckError, setGitCheckError] = useState(null); // string error message if any
+  const [step, setStep] = useState(0);
+  const [hasCloned, setHasCloned] = useState(null); // null = not chosen, true/false user choice
+  const [hasDownloaded, setHasDownloaded] = useState(null); // null = not chosen, true/false user choice
+  const [repoPath, setRepoPath] = useState('');
+  const [validatorPath, setValidatorPath] = useState('');
+  const [clonePath, setClonePath] = useState('');
+  const [downloadPath, setDownloadPath] = useState('');
+  const [isCloning, setIsCloning] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [editor, setEditor] = useState('');
+  const [gitAvailable, setGitAvailable] = useState(null); // null = not checked, true/false result
+  const [gitCheckError, setGitCheckError] = useState(null); // string error message if any
 
-    // Check Git availability automatically on step 1
-    useEffect(() => {
-      if (step === 1) {
-        const checkGit = async () => {
-          try {
-            const available = await window.api.checkGit();
-            setGitAvailable(available);
-            if (available) {
-              setGitCheckError(null);
-            } else {
-              setGitCheckError('Git is not installed or not found in PATH.\nPlease install Git and restart the application.');
-            }
-          } catch (err) {
-            setGitAvailable(false);
-            setGitCheckError('Error while checking Git: ' + err.message);
+  // Check Git availability automatically on step 1
+  useEffect(() => {
+    if (step === 1) {
+      const checkGit = async () => {
+        try {
+          const available = await window.api.checkGit();
+          setGitAvailable(available);
+          if (available) {
+            setGitCheckError(null);
+          } else {
+            setGitCheckError('Git is not installed or not found in PATH.\nPlease install Git and restart the application.');
           }
-        };
-        checkGit();
+        } catch (err) {
+          setGitAvailable(false);
+          setGitCheckError('Error while checking Git: ' + err.message);
+        }
+      };
+      checkGit();
+    }
+  }, [step]);
+
+  const handleSelectRepoFolder = async () => {
+    const selectedPath = await window.api.selectFolder();
+    if (selectedPath) setRepoPath(selectedPath);
+  };
+
+  const handleSelectDownloadFolder = async () => {
+    const selectedPath = await window.api.selectFolder();
+    if (selectedPath) setDownloadPath(selectedPath);
+  };
+
+  const handleSelectCloneRepoFolder = async () => {
+    const selected = await window.api.selectFolder();
+    if (selected) setClonePath(selected);
+  };
+
+  const handelselectValidatorFile = async () => {
+    const selected = await window.api.selectFile();
+    if (selected) setValidatorPath(selected);
+  };
+
+  const handleCloneRepo = async () => {
+    if (!clonePath) {
+      notify('Please select a folder to clone the repository.', 'error');
+      return;
+    }
+    setIsCloning(true);
+    try {
+      await window.api.cloneRepo('https://github.com/SoftFever/OrcaSlicer', clonePath);
+      // path join clonePath + OrcaSlicer
+      const clonedRepoPath = `${clonePath}/OrcaSlicer`;
+      setRepoPath(clonedRepoPath);
+      setStep(5); // vai allo step editor dopo clone
+    } catch (err) {
+      notify('Failed to clone repository: ' + err.message, 'error');
+      setStep(3); // torno a selezionare cartella clone/repo
+    }
+    setIsCloning(false);
+  };
+
+  const handleDownloadValidator = async () => {
+    if (!downloadPath) {
+      notify('Please select a folder to download the Orca profile validator.', 'error');
+      return;
+    }
+    setIsDownloading(true);
+    try {
+      const result = await window.api.downloadValidator(downloadPath);
+      if (!result.success) {
+        throw new Error(result.error || 'Unknown error');
       }
-    }, [step]);
 
-    const handleSelectRepoFolder = async () => {
-      const selectedPath = await window.api.selectFolder();
-      if (selectedPath) setRepoPath(selectedPath);
-    };
+      setValidatorPath(result.path)
+      setStep(8);
+    } catch (err) {
+      notify('Failed to download Orca profile validator: ' + err.message, 'error');
+      setStep(6); // torno a selezionare cartella download/validator
+    }
+    setIsDownloading(false);
+  };
 
-    const handleSelectDownloadFolder = async () => {
-      const selectedPath = await window.api.selectFolder();
-      if (selectedPath) setDownloadPath(selectedPath);
-    };
 
-    const handleSelectCloneRepoFolder = async () => {
-      const selected = await window.api.selectFolder();
-      if (selected) setClonePath(selected);
-    };
-
-    const handelselectValidatorFile = async () => {
-      const selected = await window.api.selectFile();
-      if (selected) setValidatorPath(selected);
-    };
-
-    const handleCloneRepo = async () => {
-      if (!clonePath) return alert('Please select a folder to clone the repository.');
-      setIsCloning(true);
-      try {
-        await window.api.cloneRepo('https://github.com/SoftFever/OrcaSlicer', clonePath);
-        // path join clonePath + OrcaSlicer
-        const clonedRepoPath = `${clonePath}/OrcaSlicer`;
-        setRepoPath(clonedRepoPath);
-        setStep(5); // vai allo step editor dopo clone
-      } catch (err) {
-        alert('Failed to clone repository: ' + err.message);
-        setStep(3); // torno a selezionare cartella clone/repo
+  const handleNextStep = () => {
+    if (step === 0) {
+      setStep(1);
+    } else if (step === 1) {
+      setStep(2);
+    } else if (step === 2) {
+      if (hasCloned === null) {
+        notify('Please choose an option.', 'error');
+        return;
       }
+      if (hasCloned) {
+        if (!repoPath) {
+          notify('Please select your existing OrcaSlicer repository path.', 'error');
+          return;
+        }
+        setStep(5); // salto clone e vado a editor
+      } else {
+        if (!clonePath) {
+          notify('Please select a folder where to clone the repository.', 'error');
+          return;
+        }
+        setStep(4); // passo a clonare (cloning)
+        handleCloneRepo();
+      }
+    } else if (step === 5) {
+      if (!editor) {
+        notify('Please select your preferred text editor.', 'error');
+        return;
+      }
+      setStep(6);
+    } else if (step === 6) {
+      if (hasDownloaded === null) {
+        notify('Please choose an option.', 'error');
+        return;
+      }
+      if (hasDownloaded) {
+        if (!validatorPath) {
+          notify('Please select your existing Orca profile validator path.', 'error');
+          return;
+        }
+        setStep(8); // passo a finire (Finish)
+      } else {
+        if (!downloadPath) {
+          notify('Please select a folder where to download the Orca profile validator.', 'error');
+          return;
+        }
+        setStep(7); // passo a scaricare (Downloading)
+        handleDownloadValidator();
+      }
+    } else if (step === 8) {
+      handleFinish();
+    }
+  };
+
+  const handleBackStep = () => {
+    if (step === 1) {
+      setStep(0);
+    } else if (step === 2) {
+      setStep(1);
+      setHasCloned(null);
+      setRepoPath('');
+      setClonePath('');
+    } else if (step === 4) {
+      setStep(2);
       setIsCloning(false);
-    };
-
-    const handleDownloadValidator = async () => {
-      if (!downloadPath) return alert('Please select a folder to download the Orca profile validator.');
-      setIsDownloading(true);
-      try {
-        const result = await window.api.downloadValidator(downloadPath);
-        if (!result.success) {
-          throw new Error(result.error || 'Unknown error');
-        }
-
-        setValidatorPath(result.path)
-        setStep(8);
-      } catch (err) {
-        alert('Failed to download Orca profile validator: ' + err.message);
-        setStep(6); // torno a selezionare cartella download/validator
-      }
+    } else if (step === 5) {
+      setStep(2);
+    } else if (step === 6) {
+      setStep(5);
+      setDownloadPath('');
+    } else if (step === 8) {
+      setStep(6);
+      setHasDownloaded(null);
+      setValidatorPath('');
       setIsDownloading(false);
-    };
+    }
 
+  };
 
-    const handleNextStep = () => {
-      if (step === 0) {
-        setStep(1);
-      } else if (step === 1) {
-        setStep(2);
-      } else if (step === 2) {
-        if (hasCloned === null) {
-          alert('Please choose an option.');
-          return;
-        }
-        if (hasCloned) {
-          if (!repoPath) {
-            alert('Please select your existing OrcaSlicer repository path.');
-            return;
-          }
-          setStep(5); // salto clone e vado a editor
-        } else {
-          if (!clonePath) {
-            alert('Please select a folder where to clone the repository.');
-            return;
-          }
-          setStep(4); // passo a clonare (cloning)
-          handleCloneRepo();
-        }
-      } else if (step === 5) {
-        if (!editor) {
-          alert('Please select your preferred text editor.');
-          return;
-        }
-        setStep(6);
-      } else if (step === 6) {
-        if (hasDownloaded === null) {
-          alert('Please choose an option.');
-          return;
-        }
-        if (hasDownloaded) {
-          if (!validatorPath) {
-            alert('Please select your existing Orca profile validator path.');
-            return;
-          }
-          setStep(8); // passo a finire (Finish)
-        } else {
-          if (!downloadPath) {
-            alert('Please select a folder where to download the Orca profile validator.');
-            return;
-          }
-          setStep(7); // passo a scaricare (Downloading)
-          handleDownloadValidator();
-        }
-      } else if (step === 8) {
-        handleFinish();
-      }
-    };
+  const handleFinish = async () => {
+    try {
+      await window.api.saveSettings({ repoPath, validatorPath, editor });
+      notify('Settings saved successfully!', 'success');
+      onComplete(repoPath);
+    } catch {
+      notify('Error saving settings.', 'error');
+    }
+  };
 
-    const handleBackStep = () => {
-      if (step === 1) {
-        setStep(0);
-      } else if (step === 2) {
-        setStep(1);
-        setHasCloned(null);
-        setRepoPath('');
-        setClonePath('');
-      } else if (step === 4) {
-        setStep(2);
-        setIsCloning(false);
-      } else if (step === 5) {
-        setStep(2);
-      } else if (step === 6) {
-        setStep(5);
-        setDownloadPath('');
-      } else if (step === 8) {
-        setStep(6);
-        setHasDownloaded(null);
-        setValidatorPath('');
-        setIsDownloading(false);
-      }
-
-    };
-
-    const handleFinish = async () => {
-      try {
-        await window.api.saveSettings({ repoPath, validatorPath, editor });
-        alert('Settings saved successfully!');
-        onComplete(repoPath);
-      } catch {
-        alert('Error saving settings.');
-      }
-    };
-
-    return (
+  return (
     <Box
       sx={{
         position: 'fixed',

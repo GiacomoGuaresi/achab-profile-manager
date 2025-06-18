@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Typography, Container, Button, TextField, MenuItem } from '@mui/material';
+import { useNotification } from '../NotificationProvider';
 
 const editorOptions = [
   { label: 'Visual Studio Code', value: 'code' },
@@ -12,6 +13,7 @@ const Settings = () => {
   const [repoPath, setRepoPath] = useState('');
   const [validatorPath, setValidatorPath] = useState('');
   const [editor, setEditor] = useState('');
+  const { notify } = useNotification();
 
   useEffect(() => {
     window.api.loadSettings().then((settings) => {
@@ -38,10 +40,10 @@ const Settings = () => {
   const handleSave = async () => {
     const result = await window.api.saveSettings({ repoPath, validatorPath, editor });
     if (!result.success) {
-      alert('Error saving settings: ' + result.error);
+      notify(`Error saving settings: ${result.error}`, 'error');
     }
     else {
-      alert('Settings saved successfully!');
+      notify('Settings saved successfully!', 'success');
     }
   };
 
