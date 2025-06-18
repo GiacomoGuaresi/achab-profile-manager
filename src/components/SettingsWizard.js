@@ -92,6 +92,11 @@ const SettingsWizard = ({ onComplete }) => {
     if (selected) setValidatorPath(selected);
   };
 
+  const handleSelectEditorFile = async () => {
+    const selected = await window.api.selectFile();
+    if (selected) setEditor(selected);
+  };
+
   const handleCloneRepo = async () => {
     if (!clonePath) {
       notify('Please select a folder to clone the repository.', 'error');
@@ -158,10 +163,6 @@ const SettingsWizard = ({ onComplete }) => {
         handleCloneRepo();
       }
     } else if (step === 5) {
-      if (!editor) {
-        notify('Please select your preferred text editor.', 'error');
-        return;
-      }
       setStep(6);
     } else if (step === 6) {
       if (hasDownloaded === null) {
@@ -365,28 +366,23 @@ const SettingsWizard = ({ onComplete }) => {
         {step === 5 && (
           <Box sx={{ width: '100%', px: 3 }}>
             <Typography variant="h6" gutterBottom>
-              Preferred Text Editor
+              Preferred Text Editor (optional)
             </Typography>
-            <Typography>Please select your preferred text editor to edit JSON files:</Typography>
-            <Select
-              fullWidth
-              value={editor}
-              onChange={(e) => setEditor(e.target.value)}
-              displayEmpty
-              sx={{ mt: 2 }}
-              renderValue={(selected) => (selected ? editorOptions.find((o) => o.value === selected)?.label : 'Select editor')}
-            >
-              <MenuItem disabled value="">
-                Select editor
-              </MenuItem>
-              {editorOptions.map((option) => (
-                <MenuItem key={option.value} value={option.value}>
-                  {option.label}
-                </MenuItem>
-              ))}
-            </Select>
+            <Typography>Please enter or select the executable file of your preferred text editor to edit JSON files:</Typography>
+            <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
+              <TextField
+                fullWidth
+                value={editor}
+                onChange={(e) => setEditor(e.target.value)}
+                placeholder="Path to editor executable (leave empty to use system default)"
+              />
+              <Button variant="outlined" onClick={handleSelectEditorFile}>
+                Browse...
+              </Button>
+            </Box>
           </Box>
         )}
+
 
         {/* Step 6 - Ask if validator is downloaded */}
         {step === 6 && (

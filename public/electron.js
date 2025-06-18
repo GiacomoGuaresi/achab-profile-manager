@@ -7,10 +7,6 @@ const settingsFilePath = path.join(app.getPath('userData'), 'settings.json');
 const { spawn } = require('child_process');
 const os = require('os');
 const https = require('https');
-const { createWriteStream } = require('fs');
-const { unlink } = require('fs/promises');
-const { pipeline } = require('stream/promises');
-const { promisify } = require('util');
 
 let mainWindow;
 
@@ -364,12 +360,27 @@ ipcMain.handle('open-in-text-editor', async (event, filePath) => {
       const settingsContent = await fs.readFile(settingsFilePath, 'utf-8');
       settings = JSON.parse(settingsContent);
     } catch (err) {
-      // Il file non esiste o non è leggibile: fallback
       settings = {};
     }
 
-    const editor = settings.editor || 'code'; // fallback a VSCode
-    spawn(editor, [filePath], { detached: true, stdio: 'ignore' }).unref();
+    const editor = settings.editor;
+
+    if (editor) {
+      spawn(editor, [filePath], { detached: true, stdio: 'ignore' }).unref();
+    } else {
+      const platform = os.platform();
+
+      if (platform === 'win32') {
+        // Windows
+        spawn('cmd', ['/c', 'start', '', filePath], { detached: true, stdio: 'ignore' }).unref();
+      } else if (platform === 'darwin') {
+        // macOS
+        spawn('open', [filePath], { detached: true, stdio: 'ignore' }).unref();
+      } else {
+        // Linux
+        spawn('xdg-open', [filePath], { detached: true, stdio: 'ignore' }).unref();
+      }
+    }
 
     return { success: true };
   } catch (error) {
@@ -377,6 +388,7 @@ ipcMain.handle('open-in-text-editor', async (event, filePath) => {
     return { success: false, error: error.message };
   }
 });
+
 
 ipcMain.handle('select-file', async () => {
   let filters = [];

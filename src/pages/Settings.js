@@ -47,6 +47,13 @@ const Settings = () => {
     }
   };
 
+  const handleSelectEditorFile = async () => {
+    const selectedPath = await window.api.selectFile();
+    if (selectedPath) {
+      setEditor(selectedPath);
+    }
+  };
+
   return (
     <Container sx={{ py: 4 }}>
       <Box>
@@ -57,7 +64,7 @@ const Settings = () => {
         <Box sx={{ my: 2 }}>
           <Typography variant="subtitle1">OrcaSlicer Folder</Typography>
           <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
-            <TextField fullWidth value={repoPath} disabled />
+            <TextField fullWidth value={repoPath} onChange={(e) => setRepoPath(e.target.value)}  />
             <Button variant="outlined" onClick={handleSelectRepoFolder}>
               Browse...
             </Button>
@@ -67,7 +74,7 @@ const Settings = () => {
         <Box sx={{ my: 2 }}>
           <Typography variant="subtitle1">Orca profile validator File</Typography>
           <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
-            <TextField fullWidth value={validatorPath} disabled />
+            <TextField fullWidth value={validatorPath} onChange={(e) => setValidatorPath(e.target.value)} />
             <Button variant="outlined" onClick={handleSelectValidatorFile}>
               Browse...
             </Button>
@@ -75,20 +82,13 @@ const Settings = () => {
         </Box>
 
         <Box sx={{ my: 2 }}>
-          <Typography variant="subtitle1">Preferred Text Editor</Typography>
-          <TextField
-            select
-            fullWidth
-            value={editor}
-            onChange={(e) => setEditor(e.target.value)}
-            sx={{ mt: 1 }}
-          >
-            {editorOptions.map((option) => (
-              <MenuItem key={option.value} value={option.value}>
-                {option.label}
-              </MenuItem>
-            ))}
-          </TextField>
+          <Typography variant="subtitle1">Preferred Text Editor (optional)</Typography>
+          <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+            <TextField fullWidth value={editor} onChange={(e) => setEditor(e.target.value)} placeholder="System default will be used if not selected" />
+            <Button variant="outlined" onClick={handleSelectEditorFile}>
+              Browse...
+            </Button>
+          </Box>
         </Box>
 
         <Button variant="contained" onClick={handleSave}>
