@@ -19,4 +19,5 @@ contextBridge.exposeInMainWorld('api', {
   selectFolder: () => ipcRenderer.invoke('select-folder'),
   checkGit: () => ipcRenderer.invoke('check-git'),
   runValidation: (type, vendor) => ipcRenderer.invoke('run-validation', type, vendor),
+  openExternal: (url) => ipcRenderer.invoke('open-external', url),
 });

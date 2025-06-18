@@ -521,3 +521,14 @@ ipcMain.handle('run-validation', async (event, type, vendor) => {
     });
   });
 });
+
+ipcMain.handle('open-external', async (event, url) => {
+  const { shell } = require('electron');
+  try {
+    await shell.openExternal(url);
+    return { success: true };
+  } catch (error) {
+    console.error('Errore nell\'apertura dell\'URL:', error);
+    return { success: false, error: error.message };
+  }
+});

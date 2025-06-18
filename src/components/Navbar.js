@@ -1,6 +1,6 @@
 // components/Navbar.js
 import React, { useState, useEffect } from 'react';
-import { useLocation, Link } from 'react-router-dom';
+import { useLocation, Link, Navigate } from 'react-router-dom';
 import { Button, Menu, MenuItem, Box } from '@mui/material';
 import HomeIcon from '@mui/icons-material/Home';
 import { useFileActions } from '../FileActionsContext';
@@ -14,12 +14,27 @@ const Navbar = () => {
   const open = Boolean(anchorEl);
   const isEditConfigPage = location.pathname === '/edit-configuration';
   const [showPopup, setShowPopup] = useState(false);
-  const handleClick = (event) => {
-    setAnchorEl(event.currentTarget);
+
+  const [fileAnchorEl, setFileAnchorEl] = useState(null);
+  const [guideAnchorEl, setGuideAnchorEl] = useState(null);
+
+  const fileMenuOpen = Boolean(fileAnchorEl);
+  const guideMenuOpen = Boolean(guideAnchorEl);
+
+  const handleFileClick = (event) => {
+    setFileAnchorEl(event.currentTarget);
   };
-  const handleClose = () => {
-    setAnchorEl(null);
+  const handleGuideClick = (event) => {
+    setGuideAnchorEl(event.currentTarget);
   };
+
+  const handleFileClose = () => {
+    setFileAnchorEl(null);
+  };
+  const handleGuideClose = () => {
+    setGuideAnchorEl(null);
+  };
+
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -66,95 +81,58 @@ const Navbar = () => {
         </Button>
 
         {/* Dropdown File sempre visibile */}
-        <>
-          <Button
-            color="inherit"
-            onClick={handleClick}
-            sx={{
-              height: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderRadius: 0,
-              px: 1,
-            }}
-            aria-controls={open ? 'file-menu' : undefined}
-            aria-haspopup="true"
-            aria-expanded={open ? 'true' : undefined}
-          >
-            File
-          </Button>
-          <Menu
-            id="file-menu"
-            anchorEl={anchorEl}
-            open={open}
-            onClose={handleClose}
-            MenuListProps={{
-              'aria-labelledby': 'file-button',
-            }}
-          >
-            <MenuItem
-              disabled={!isEditConfigPage}
-              onClick={() => {
-                if (isEditConfigPage) {
-                  save();
-                  handleClose();
-                }
-              }}
-            >
-              Save
-              <Box component="span" sx={{ marginLeft: 'auto', opacity: 0.6, fontSize: '0.75rem', paddingLeft: 1 }}>
-                {navigator.platform.toUpperCase().indexOf('MAC') >= 0 ? '⌘+S' : 'Ctrl+S'}
-              </Box>
-            </MenuItem>
+        <Button
+          color="inherit"
+          onClick={handleFileClick}
+          sx={{
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: 0,
+            px: 1,
+          }}
+          aria-controls={fileMenuOpen ? 'file-menu' : undefined}
+          aria-haspopup="true"
+          aria-expanded={fileMenuOpen ? 'true' : undefined}
+        >
+          File
+        </Button>
+        <Menu
+          id="file-menu"
+          anchorEl={fileAnchorEl}
+          open={fileMenuOpen}
+          onClose={handleFileClose}
+          MenuListProps={{
+            'aria-labelledby': 'file-button',
+          }}
+        >
+          <MenuItem onClick={() => { save(); handleFileClose(); }} disabled={!isEditConfigPage}>
+            Save
+            <Box component="span" sx={{ marginLeft: 'auto', opacity: 0.6, fontSize: '0.75rem', paddingLeft: 1 }}>
+              {navigator.platform.toUpperCase().indexOf('MAC') >= 0 ? '⌘+S' : 'Ctrl+S'}
+            </Box>
+          </MenuItem>
 
-            <MenuItem
-              disabled={!isEditConfigPage}
-              onClick={() => {
-                if (isEditConfigPage) {
-                  discard();
-                  handleClose();
-                }
-              }}
-            >
-              Discard
-              <Box component="span" sx={{ marginLeft: 'auto', opacity: 0.6, fontSize: '0.75rem', paddingLeft: 1 }}>
-                {navigator.platform.toUpperCase().indexOf('MAC') >= 0 ? '⌘+D' : 'Ctrl+D'}
-              </Box>
-            </MenuItem>
+          <MenuItem onClick={() => { discard(); handleFileClose(); }} disabled={!isEditConfigPage}>
+            Discard
+            <Box component="span" sx={{ marginLeft: 'auto', opacity: 0.6, fontSize: '0.75rem', paddingLeft: 1 }}>
+              {navigator.platform.toUpperCase().indexOf('MAC') >= 0 ? '⌘+D' : 'Ctrl+D'}
+            </Box>
+          </MenuItem>
 
-            <MenuItem
-              disabled={!isEditConfigPage}
-              onClick={() => {
-                if (isEditConfigPage) {
-                  openInFileExplorer();
-                  handleClose();
-                }
-              }}
-            >
-              Open in File Explorer
-            </MenuItem>
+          <MenuItem onClick={() => { openInFileExplorer(); handleFileClose(); }} disabled={!isEditConfigPage}>
+            Open in File Explorer
+          </MenuItem>
 
-            <MenuItem
-              disabled={!isEditConfigPage}
-              onClick={() => {
-                if (isEditConfigPage) {
-                  openInTextEditor();
-                  handleClose();
-                }
-              }}
-            >
-              Open in Text Editor
-            </MenuItem>
+          <MenuItem onClick={() => { openInTextEditor(); handleFileClose(); }} disabled={!isEditConfigPage}>
+            Open in Text Editor
+          </MenuItem>
 
-            <MenuItem
-              component={Link}
-              to="/settings"
-            >
-              Settings
-            </MenuItem>
-          </Menu>
-        </>
+          <MenuItem onClick={() => { Navigate("/settings"); handleFileClose(); }}>
+            Settings
+          </MenuItem>
+        </Menu>
 
         {/* Altri bottoni */}
         <Button
@@ -187,6 +165,38 @@ const Navbar = () => {
         >
           Git
         </Button>
+
+        <Button
+          color="inherit"
+          onClick={handleGuideClick}
+          sx={{
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: 0,
+            px: 1,
+          }}
+          aria-controls={guideMenuOpen ? 'guide-menu' : undefined}
+          aria-haspopup="true"
+          aria-expanded={guideMenuOpen ? 'true' : undefined}
+        >
+          Guide
+        </Button>
+        <Menu
+          id="guide-menu"
+          anchorEl={guideAnchorEl}
+          open={guideMenuOpen}
+          onClose={handleGuideClose}
+        >
+          <MenuItem onClick={() => {
+            window.api.openExternal('https://github.com/SoftFever/OrcaSlicer/wiki/How-to-create-profiles');
+            handleGuideClose();
+          }}>
+            Develop Profiles for OrcaSlicer
+          </MenuItem>
+        </Menu>
+
 
       </Box>
       {showPopup && <ValidateProfilesPopup onClose={() => setShowPopup(false)} />}
