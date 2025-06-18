@@ -123,7 +123,7 @@ function buildProfileGraph(profilesData) {
         id: `e-${profile.inherits}-${profile.name}`,
         source: profile.inherits,
         target: profile.name,
-        type: 'bezier',
+        type: 'default',
         markerEnd: {
           type: 'arrowclosed',
           color: '#009688',
