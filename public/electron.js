@@ -1,4 +1,4 @@
-// main.js (esempio)
+// electron.js (esempio)
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs/promises');
@@ -9,6 +9,24 @@ const os = require('os');
 const https = require('https');
 
 let mainWindow;
+let splash;
+
+function createSplash() {
+  splash = new BrowserWindow({
+    width: 400,
+    height: 300,
+    frame: false,
+    transparent: false,
+    alwaysOnTop: true,
+    resizable: false,
+    show: false,
+  });
+
+  splash.loadFile(path.join(__dirname, 'splash.html'));
+  splash.once('ready-to-show', () => {
+    splash.show();
+  });
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -27,13 +45,13 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-  createWindow();
+  createSplash();
 
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
-    }
-  });
+  // Simula caricamento (es. inizializzazioni async)
+  setTimeout(() => {
+    createWindow();
+    splash.close(); // Chiudi splash
+  }, 2000); // Mostra lo splash per almeno 2 secondi
 });
 
 app.on('window-all-closed', () => {
