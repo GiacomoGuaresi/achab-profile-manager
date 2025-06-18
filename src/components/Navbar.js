@@ -1,17 +1,16 @@
 // components/Navbar.js
 import React, { useState, useEffect } from 'react';
-import { useLocation, Link, Navigate } from 'react-router-dom';
+import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { Button, Menu, MenuItem, Box } from '@mui/material';
 import HomeIcon from '@mui/icons-material/Home';
 import { useFileActions } from '../FileActionsContext';
 import ValidateProfilesPopup from './ValidateProfilesPopup';
 
-
 const Navbar = () => {
+  const navigate = useNavigate();
   const location = useLocation();
   const { save, discard, openInFileExplorer, openInTextEditor } = useFileActions();
-  const [anchorEl, setAnchorEl] = useState(null);
-  const open = Boolean(anchorEl);
+  
   const isEditConfigPage = location.pathname === '/edit-configuration';
   const [showPopup, setShowPopup] = useState(false);
 
@@ -129,7 +128,7 @@ const Navbar = () => {
             Open in Text Editor
           </MenuItem>
 
-          <MenuItem onClick={() => { Navigate("/settings"); handleFileClose(); }}>
+          <MenuItem onClick={() => { navigate("/settings"); handleFileClose(); }}>
             Settings
           </MenuItem>
         </Menu>
