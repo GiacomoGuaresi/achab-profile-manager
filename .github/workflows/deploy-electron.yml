@@ -44,18 +44,18 @@ jobs:
             BEGIN { entry = "" }
             /^--ENTRY--/ {
               if (entry != "") {
-                print "- " entry "\n"
+                print "- " entry
               }
               entry = ""
               next
             }
             {
-              if (entry != "") entry = entry "\n" $0
+              if (entry != "") entry = entry $0
               else entry = $0
             }
             END {
               if (entry != "") {
-                print "- " entry "\n"
+                print "- " entry
               }
             }
           ' >> "$GITHUB_ENV"
