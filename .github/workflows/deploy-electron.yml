@@ -30,17 +30,37 @@ jobs:
           PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
 
           if [ -z "$PREV_TAG" ]; then
-            LOG=$(git log --pretty=format:"- %s")
+            LOG=$(git log --pretty=format:"--ENTRY--%n%B")
           else
-            LOG=$(git log "$PREV_TAG"..HEAD --pretty=format:"- %s")
+            LOG=$(git log "$PREV_TAG"..HEAD --pretty=format:"--ENTRY--%n%B")
           fi
 
-          {
-            echo "CHANGELOG<<EOF"
-            echo "## $VERSION"
-            echo "$LOG"
-            echo "EOF"
-          } >> "$GITHUB_ENV"
+          echo "CHANGELOG<<EOF" >> "$GITHUB_ENV"
+          echo "## $VERSION" >> "$GITHUB_ENV"
+          echo "" >> "$GITHUB_ENV"
+
+          # format entries
+          echo "$LOG" | awk '
+            BEGIN { entry = "" }
+            /^--ENTRY--/ {
+              if (entry != "") {
+                print "- " entry
+              }
+              entry = ""
+              next
+            }
+            {
+              if (entry != "") entry = entry $0
+              else entry = $0
+            }
+            END {
+              if (entry != "") {
+                print "- " entry
+              }
+            }
+          ' >> "$GITHUB_ENV"
+
+          echo "EOF" >> "$GITHUB_ENV"
 
       - name: Create and push git tag
         run: |
