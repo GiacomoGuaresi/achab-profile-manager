@@ -44,6 +44,7 @@ const SettingsWizard = ({ onComplete }) => {
   const [repoPath, setRepoPath] = useState('');
   const [validatorPath, setValidatorPath] = useState('');
   const [clonePath, setClonePath] = useState('');
+  const [forkUrl, setForkUrl] = useState('');
   const [downloadPath, setDownloadPath] = useState('');
   const [isCloning, setIsCloning] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -110,21 +111,32 @@ const SettingsWizard = ({ onComplete }) => {
   };
 
   const handleCloneRepo = async () => {
+    if (!forkUrl || !forkUrl.includes('github.com')) {
+      notify('Please provide a valid GitHub repository URL.', 'error');
+      return;
+    }
+
     if (!clonePath) {
       notify('Please select a folder to clone the repository.', 'error');
       return;
     }
+
     setIsCloning(true);
+
     try {
-      await window.api.cloneRepo('https://github.com/SoftFever/OrcaSlicer', clonePath);
-      // path join clonePath + OrcaSlicer
-      const clonedRepoPath = `${clonePath}/OrcaSlicer`;
+      await window.api.cloneRepo(forkUrl, clonePath);
+
+      // ricava nome repo da URL
+      const repoName = forkUrl.split('/').pop()?.replace(/\.git$/, '') || 'repository';
+      const clonedRepoPath = `${clonePath}/${repoName}`;
+
       setRepoPath(clonedRepoPath);
       setStep(5); // vai allo step editor dopo clone
     } catch (err) {
       notify('Failed to clone repository: ' + err.message, 'error');
-      setStep(3); // torno a selezionare cartella clone/repo
+      setStep(3);
     }
+
     setIsCloning(false);
   };
 
@@ -353,7 +365,15 @@ const SettingsWizard = ({ onComplete }) => {
               )}
               {hasCloned === false && (
                 <>
-                  <Typography>Select folder where to clone OrcaSlicer repository:</Typography>
+                  <Typography>Paste the URL of your OrcaSlicer fork:</Typography>
+                  <TextField
+                    fullWidth
+                    value={forkUrl}
+                    onChange={(e) => setForkUrl(e.target.value)}
+                    placeholder="https://github.com/your-username/OrcaSlicer"
+                  />
+
+                  <Typography sx={{ mt: 2 }}>Select folder where to clone the repository:</Typography>
                   <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
                     <TextField fullWidth value={clonePath} disabled placeholder="Select folder" />
                     <Button variant="outlined" onClick={handleSelectCloneRepoFolder}>
