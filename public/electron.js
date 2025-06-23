@@ -452,15 +452,30 @@ ipcMain.handle('save-settings', async (event, settings) => {
 });
 
 ipcMain.handle('clone-repo', async (event, repoUrl, clonePath) => {
+  const targetPath = path.join(clonePath, 'OrcaSlicer');
+
   return new Promise((resolve, reject) => {
-    clonePath = path.join(clonePath, 'OrcaSlicer');
-    exec(`git clone ${repoUrl} "${clonePath}"`, (error, stdout, stderr) => {
+    exec(`git clone ${repoUrl} "${targetPath}"`, (error, stdout, stderr) => {
       if (error) {
         console.error('Errore durante il clone del repository:', error);
         return reject(error);
       }
+
       console.log('Repository cloned successfully:', stdout);
-      resolve();
+
+      exec(
+        `git remote add upstream https://github.com/SoftFever/OrcaSlicer`,
+        { cwd: targetPath },
+        (errRemote, outRemote, errRemoteOut) => {
+          if (errRemote) {
+            console.error('Errore durante l\'aggiunta del remote upstream:', errRemote);
+            return reject(errRemote);
+          }
+
+          console.log('Upstream remote added successfully:', outRemote);
+          resolve();
+        }
+      );
     });
   });
 });
