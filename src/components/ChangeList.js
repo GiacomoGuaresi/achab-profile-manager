@@ -13,9 +13,9 @@ import {
 const ChangeList = ({ files, selectedFiles = [], onSelectionChange }) => {
   const [selected, setSelected] = useState(new Set(selectedFiles));
 
-  // useEffect(() => {
-  //   onSelectionChange([...selected]);
-  // }, [selected, onSelectionChange]);
+  useEffect(() => {
+    onSelectionChange([...selected]);
+  }, [selected, onSelectionChange]);
 
   const toggleFile = (file) => {
     const updated = new Set(selected);
