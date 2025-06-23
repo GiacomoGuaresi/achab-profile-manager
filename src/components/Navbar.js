@@ -152,7 +152,7 @@ const Navbar = () => {
         <Button
           color="inherit"
           component={Link}
-          to="/settings"
+          to="/git"
           sx={{
             height: '100%',
             display: 'flex',

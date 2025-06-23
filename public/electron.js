@@ -7,6 +7,7 @@ const settingsFilePath = path.join(app.getPath('userData'), 'settings.json');
 const { spawn } = require('child_process');
 const os = require('os');
 const https = require('https');
+const simpleGit = require('simple-git');
 
 let mainWindow;
 let splash;
@@ -583,5 +584,127 @@ ipcMain.handle('open-external', async (event, url) => {
   } catch (error) {
     console.error('Errore nell\'apertura dell\'URL:', error);
     return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('get-branches', async () => {
+  const repoPath = await getOrcaRootPath();
+  const git = simpleGit(repoPath);
+  try {
+    const branchSummary = await git.branchLocal();
+    return branchSummary.all; // array di nomi branch
+  } catch (err) {
+    console.error('Git get branches failed:', err);
+    throw err;
+  }
+});
+
+ipcMain.handle('get-current-branch', async () => {
+  const repoPath = await getOrcaRootPath();
+  const git = simpleGit(repoPath);
+  try {
+    const branchSummary = await git.branchLocal();
+    return branchSummary.current;
+  } catch (err) {
+    console.error('Git get current branch failed:', err);
+    throw err;
+  }
+});
+
+ipcMain.handle('get-pull-count', async () => {
+  const repoPath = await getOrcaRootPath();
+  const git = simpleGit(repoPath);
+  try {
+    await git.fetch(); // aggiorna i riferimenti remoti
+    const status = await git.status();
+
+    // status.behind indica quanti commit il branch è indietro rispetto al remoto
+    const behind = status.behind || 0;
+
+    return behind; // numero di commit da pullare
+  } catch (err) {
+    console.error('Git get pull count failed:', err);
+    throw err;
+  }
+});
+
+ipcMain.handle('pull', async () => {
+  const repoPath = await getOrcaRootPath();
+  const git = simpleGit(repoPath);
+  try {
+    const pullResult = await git.pull();
+    return pullResult;
+  } catch (err) {
+    console.error('Git pull failed:', err);
+    throw err;
+  }
+});
+
+ipcMain.handle('switch-branch', async (event, branchName) => {
+  const repoPath = await getOrcaRootPath();
+  const git = simpleGit(repoPath);
+  try {
+    await git.checkout(branchName);
+    return { success: true, branch: branchName };
+  } catch (err) {
+    console.error('Git switch branch failed:', err);
+    throw err;
+  }
+});
+
+ipcMain.handle('create-branch', async (event, branchName, baseBranch) => {
+  const repoPath = await getOrcaRootPath();
+  const git = simpleGit(repoPath);
+  try {
+    await git.checkout(baseBranch);
+    await git.checkoutLocalBranch(branchName);
+    return { success: true, branch: branchName };
+  } catch (err) {
+    console.error('Git create branch failed:', err);
+    throw err;
+  }
+});
+
+ipcMain.handle('get-changed-files', async () => {
+  const repoPath = await getOrcaRootPath();
+  const git = simpleGit(repoPath);
+  try {
+    const status = await git.status();
+    const changedFiles = [
+      ...status.modified,
+      ...status.created,
+      ...status.deleted,
+      ...status.renamed.map(f => f.to)
+    ];
+    const uniqueFiles = Array.from(new Set(changedFiles)).filter(f => f);
+    return uniqueFiles;
+  } catch (err) {
+    console.error('Git get changed files failed:', err);
+    throw err;
+  }
+});
+
+ipcMain.handle('read-file', async (event, filePath) => {
+  const repoPath = await getOrcaRootPath();
+  const fullPath = path.join(repoPath, filePath);
+  try {
+    const content = await fs.readFile(fullPath, 'utf-8');
+    return content;
+  } catch (err) {
+    console.error('Read file failed:', err);
+    throw err;
+  }
+});
+
+ipcMain.handle('commit', async (event, message) => {
+  const repoPath = await getOrcaRootPath();
+  const git = simpleGit(repoPath);
+  try {
+    await git.add('.');
+    const commitResult = await git.commit(message);
+    return commitResult;
+  } catch (err) {
+    console.error('Git commit failed:', err);
+    throw err;
   }
 });

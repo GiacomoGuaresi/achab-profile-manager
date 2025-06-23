@@ -12,6 +12,7 @@ import { HashRouter, Routes, Route } from 'react-router-dom';
 import customTheme from './theme/customTheme';
 import Home from './pages/Home';
 import Settings from './pages/Settings';
+import Git from './pages/Git';
 import EditConfiguration from './pages/EditConfiguration';
 
 import GitFooter from './components/GitFooter';
@@ -66,6 +67,7 @@ const App = () => {
                 <Routes>
                   <Route path="/" element={<Home />} />
                   <Route path="/settings" element={<Settings />} />
+                  <Route path="/git" element={<Git />} />
                   <Route path="/edit-configuration" element={<EditConfiguration />} />
                 </Routes>
               </Box>

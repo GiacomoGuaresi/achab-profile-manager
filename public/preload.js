@@ -20,4 +20,13 @@ contextBridge.exposeInMainWorld('api', {
   checkGit: () => ipcRenderer.invoke('check-git'),
   runValidation: (type, vendor) => ipcRenderer.invoke('run-validation', type, vendor),
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
+  pull: () => ipcRenderer.invoke('pull'),
+  switchBranch: (branchName) => ipcRenderer.invoke('switch-branch',branchName),
+  createBranch: (branchName, baseBranch) => ipcRenderer.invoke('create-branch',branchName, baseBranch),
+  getChangedFiles: () => ipcRenderer.invoke('get-changed-files'),
+  readFile: (filePath) => ipcRenderer.invoke('read-file',filePath),
+  commit: (message) => ipcRenderer.invoke('commit',message),
+  getBranches: () => ipcRenderer.invoke('get-branches'),
+  getCurrentBranch: () => ipcRenderer.invoke('get-current-branch'),
+  getPullCount: () => ipcRenderer.invoke('get-pull-count'),
 });
