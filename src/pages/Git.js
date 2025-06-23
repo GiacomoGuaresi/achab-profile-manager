@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useCallback, useState } from 'react';
 import { Box } from '@mui/material';
 import GitNavbar from '../components/GitNavbar';
 import ChangeList from '../components/ChangeList';
@@ -6,9 +6,9 @@ import FileViewer from '../components/FileViewer';
 import CommitPanel from '../components/CommitPanel';
 
 const Git = () => {
-  const [branch, setBranch] = useState('develop');
-  const [branches, setBranches] = useState(['main', 'develop', 'feature-login']);
-  const [pullCount, setPullCount] = useState(2);
+  const [branch, setBranch] = useState('');
+  const [branches, setBranches] = useState([]);
+  const [pullCount, setPullCount] = useState(0);
   const [files, setFiles] = useState([]);
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [fileContent, setFileContent] = useState('');
@@ -94,23 +94,30 @@ const Git = () => {
   };
 
   // Quando cambia la selezione dei file
-  const handleSelectionChange = async (selected) => {
+  const handleSelectionChange = useCallback((selected) => {
     setSelectedFiles(selected);
 
     if (selected.length === 1) {
       setLoadingFile(true);
-      try {
-        const content = await window.api.readFile(selected[0]);
-        setFileContent(content);
-      } catch (err) {
-        console.error('Error reading file:', err);
-        setFileContent('');
-      }
-      setLoadingFile(false);
+
+      // definisci una funzione async interna
+      const fetchContent = async () => {
+        try {
+          const content = await window.api.readFile(selected[0]);
+          setFileContent(content);
+        } catch (err) {
+          console.error('Error reading file:', err);
+          setFileContent('');
+        } finally {
+          setLoadingFile(false);
+        }
+      };
+
+      fetchContent(); // chiama la funzione async
     } else {
       setFileContent('');
     }
-  };
+  }, []);
 
   // Commit
   const handleCommit = async (msg) => {
