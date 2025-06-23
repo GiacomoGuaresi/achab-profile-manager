@@ -506,9 +506,17 @@ ipcMain.handle('check-git', async () => {
   return new Promise((resolve) => {
     exec('git --version', (error, stdout, stderr) => {
       if (error) {
-        resolve(false);
+        resolve({ installed: false, loggedIn: false });
       } else {
-        resolve(true);
+        exec('git config --global user.name', (errName, stdoutName) => {
+          exec('git config --global user.email', (errEmail, stdoutEmail) => {
+            const loggedIn = Boolean(stdoutName.trim()) && Boolean(stdoutEmail.trim());
+            resolve({
+              installed: true,
+              loggedIn
+            });
+          });
+        });
       }
     });
   });

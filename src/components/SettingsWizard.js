@@ -51,26 +51,38 @@ const SettingsWizard = ({ onComplete }) => {
   const [gitAvailable, setGitAvailable] = useState(null); // null = not checked, true/false result
   const [gitCheckError, setGitCheckError] = useState(null); // string error message if any
 
-  // Check Git availability automatically on step 1
   useEffect(() => {
     if (step === 1) {
       const checkGit = async () => {
         try {
-          const available = await window.api.checkGit();
-          setGitAvailable(available);
-          if (available) {
-            setGitCheckError(null);
+          const result = await window.api.checkGit();
+
+          if (!result.installed) {
+            setGitAvailable(false);
+            setGitCheckError(
+              'Git is not installed or not found in PATH.\nPlease install Git and restart the application.'
+            );
+          } else if (!result.loggedIn) {
+            setGitAvailable(false);
+            setGitCheckError(
+              'Git is installed, but no user is configured.\nPlease set your Git user name and email with:\n' +
+              'git config --global user.name "Your Name"\n' +
+              'git config --global user.email "you@example.com"'
+            );
           } else {
-            setGitCheckError('Git is not installed or not found in PATH.\nPlease install Git and restart the application.');
+            setGitAvailable(true);
+            setGitCheckError(null);
           }
         } catch (err) {
           setGitAvailable(false);
           setGitCheckError('Error while checking Git: ' + err.message);
         }
       };
+
       checkGit();
     }
   }, [step]);
+
 
   const handleSelectRepoFolder = async () => {
     const selectedPath = await window.api.selectFolder();
