@@ -13,7 +13,7 @@ const FileViewer = ({ content, language = 'json' }) => {
           margin: 0,
           background: 'none',
           fontSize: '0.9rem',
-          minHeight: '100%',
+          height: '100%',
         }}
         wrapLongLines
       >

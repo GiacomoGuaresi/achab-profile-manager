@@ -5,7 +5,11 @@ import ChangeList from '../components/ChangeList';
 import FileViewer from '../components/FileViewer';
 import CommitPanel from '../components/CommitPanel';
 
+import { useNotification } from '../NotificationProvider';
+
 const Git = () => {
+  const { notify } = useNotification();
+
   const [branch, setBranch] = useState('');
   const [branches, setBranches] = useState([]);
   const [pullCount, setPullCount] = useState(0);
@@ -13,12 +17,11 @@ const Git = () => {
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [fileContent, setFileContent] = useState('');
   const [loadingFile, setLoadingFile] = useState(false);
+  const [activeFile, setActiveFile] = useState(null);
 
-  // Carica info branch, pullCount e file modificati all'avvio
   useEffect(() => {
     async function fetchGitInfo() {
       try {
-        // Ottieni branches e branch corrente
         const [branchesList, currentBranch, behindCount, changedFiles] = await Promise.all([
           window.api.getBranches(),
           window.api.getCurrentBranch(),
@@ -31,18 +34,16 @@ const Git = () => {
         setPullCount(behindCount);
         setFiles(changedFiles);
       } catch (err) {
-        console.error('Error fetching git info:', err);
+        notify('Error fetching git info: ' + err.message, 'error');
       }
     }
     fetchGitInfo();
-  }, []);
+  }, [notify]);
 
-  // Handler Pull
   const handlePull = async () => {
     try {
       await window.api.pull();
-      console.log('Pull successful');
-      // Aggiorna file, pull count e branch info dopo il pull
+      notify('Pull successful', 'success');
       const [changedFiles, behindCount] = await Promise.all([
         window.api.getChangedFiles(),
         window.api.getPullCount(),
@@ -50,16 +51,14 @@ const Git = () => {
       setFiles(changedFiles);
       setPullCount(behindCount);
     } catch (err) {
-      console.error('Pull failed:', err);
+      notify('Pull failed: ' + err.message, 'error');
     }
   };
 
-  // Handler switch branch
   const handleSwitchBranch = async (newBranch) => {
     try {
       await window.api.switchBranch(newBranch);
       setBranch(newBranch);
-      // Ricarica file cambiati, branches e pullCount
       const [changedFiles, updatedBranches, behindCount] = await Promise.all([
         window.api.getChangedFiles(),
         window.api.getBranches(),
@@ -70,12 +69,12 @@ const Git = () => {
       setPullCount(behindCount);
       setSelectedFiles([]);
       setFileContent('');
+      notify(`Switched to branch ${newBranch}`, 'success');
     } catch (err) {
-      console.error('Switch branch failed:', err);
+      notify('Switch branch failed: ' + err.message, 'error');
     }
   };
 
-  // Handler create branch
   const handleCreateBranch = async (name, base) => {
     try {
       await window.api.createBranch(name, base);
@@ -88,55 +87,65 @@ const Git = () => {
       setFiles(changedFiles);
       setSelectedFiles([]);
       setFileContent('');
+      notify(`Branch ${name} created from ${base}`, 'success');
     } catch (err) {
-      console.error('Create branch failed:', err);
+      notify('Create branch failed: ' + err.message, 'error');
     }
   };
 
-  // Quando cambia la selezione dei file
   const handleSelectionChange = useCallback((selected) => {
     setSelectedFiles(selected);
 
     if (selected.length === 1) {
       setLoadingFile(true);
-
-      // definisci una funzione async interna
       const fetchContent = async () => {
         try {
           const content = await window.api.readFile(selected[0]);
           setFileContent(content);
         } catch (err) {
-          console.error('Error reading file:', err);
+          notify('Error reading file: ' + err.message, 'error');
           setFileContent('');
         } finally {
           setLoadingFile(false);
         }
       };
 
-      fetchContent(); // chiama la funzione async
+      fetchContent();
     } else {
       setFileContent('');
     }
-  }, []);
+  }, [notify]);
 
-  // Commit
+  const handleOnRestore = async (file) => {
+    try {
+      await window.api.restoreFile(file);
+      notify('File restored: ' + file, 'success');
+
+      // aggiorna la lista dei file modificati dopo il restore
+      const changedFiles = await window.api.getChangedFiles();
+      setFiles(changedFiles);
+
+    } catch (err) {
+      notify('Restore failed: ' + err.message, 'error');
+    }
+  };
+
+
   const handleCommit = async (msg) => {
     try {
       await window.api.commit(msg);
-      console.log('Committed with message:', msg);
-      // Dopo commit aggiorna file modificati
+      notify('Committed with message: ' + msg, 'success');
       const changedFiles = await window.api.getChangedFiles();
       setFiles(changedFiles);
       setSelectedFiles([]);
       setFileContent('');
     } catch (err) {
-      console.error('Commit failed:', err);
+      notify('Commit failed: ' + err.message, 'error');
     }
   };
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* Navbar in alto */}
       <GitNavbar
         branch={branch}
         branches={branches}
@@ -146,14 +155,29 @@ const Git = () => {
         onCreateBranch={handleCreateBranch}
       />
 
-      {/* Parte sotto: ChangeList + FileViewer/CommitPanel */}
       <Box sx={{ flex: 1, display: 'flex' }}>
-        {/* Colonna sinistra: ChangeList */}
         <Box sx={{ width: '50%', borderRight: '1px solid #ddd', overflow: 'auto' }}>
-          <ChangeList files={files} onSelectionChange={handleSelectionChange} />
+          <ChangeList
+            files={files}
+            selectedFiles={selectedFiles}
+            onSelectionChange={handleSelectionChange}
+            onActiveChange={async (file) => {
+              setActiveFile(file);
+              setLoadingFile(true);
+              try {
+                const content = await window.api.readFile(file);
+                setFileContent(content);
+              } catch (err) {
+                notify('Error reading file: ' + err.message, 'error');
+                setFileContent('');
+              } finally {
+                setLoadingFile(false);
+              }
+            }}
+            onRestore={handleOnRestore}
+          />
         </Box>
 
-        {/* Colonna destra: FileViewer + CommitPanel */}
         <Box sx={{ width: '50%', display: 'flex', flexDirection: 'column' }}>
           <Box sx={{ flex: 1, overflow: 'auto', p: 1 }}>
             {loadingFile ? (

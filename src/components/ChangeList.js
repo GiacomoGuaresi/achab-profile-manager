@@ -7,11 +7,15 @@ import {
   ListItemText,
   ListItemIcon,
   Typography,
-  Divider
+  Divider,
+  IconButton,
+  Tooltip
 } from '@mui/material';
+import RestoreIcon from '@mui/icons-material/Restore';
 
-const ChangeList = ({ files, selectedFiles = [], onSelectionChange }) => {
+const ChangeList = ({ files, selectedFiles = [], onSelectionChange, onActiveChange, onRestore }) => {
   const [selected, setSelected] = useState(new Set(selectedFiles));
+  const [activeFile, setActiveFile] = useState(null);
 
   useEffect(() => {
     onSelectionChange([...selected]);
@@ -35,6 +39,15 @@ const ChangeList = ({ files, selectedFiles = [], onSelectionChange }) => {
     }
   };
 
+  const handleActiveClick = (file) => {
+    setActiveFile(file);
+    if (onActiveChange) onActiveChange(file);
+  };
+
+  const handleRestoreClick = (file) => {
+    if (onRestore) onRestore(file);
+  };
+
   const allSelected = selected.size === files.length && files.length > 0;
   const someSelected = selected.size > 0 && selected.size < files.length;
 
@@ -53,15 +66,42 @@ const ChangeList = ({ files, selectedFiles = [], onSelectionChange }) => {
 
       <List dense sx={{ overflowY: 'auto', maxHeight: 'calc(100% - 48px)' }}>
         {files.map((file) => (
-          <ListItem key={file} disablePadding>
-            <ListItemIcon>
-              <Checkbox
-                edge="start"
-                checked={selected.has(file)}
-                onChange={() => toggleFile(file)}
+          <ListItem
+            key={file}
+            disablePadding
+            sx={{
+              backgroundColor: file === activeFile ? 'rgba(0, 0, 255, 0.1)' : 'transparent',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              overflowX: 'hidden'
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1 }}>
+              <ListItemIcon>
+                <Checkbox
+                  edge="start"
+                  checked={selected.has(file)}
+                  onChange={() => toggleFile(file)}
+                />
+              </ListItemIcon>
+              <ListItemText
+                primary={file}
+                onClick={() => handleActiveClick(file)}
+                sx={{ userSelect: 'none', pr: 1 }}
               />
-            </ListItemIcon>
-            <ListItemText primary={file} />
+            </Box>
+            <Tooltip title="Restore file">
+              <IconButton
+                edge="end"
+                size="small"
+                onClick={() => handleRestoreClick(file)}
+                aria-label={`restore ${file}`}
+              >
+                <RestoreIcon />
+              </IconButton>
+            </Tooltip>
           </ListItem>
         ))}
       </List>
