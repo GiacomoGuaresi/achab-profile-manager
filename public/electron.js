@@ -590,9 +590,11 @@ ipcMain.handle('open-external', async (event, url) => {
 ipcMain.handle('get-branches', async () => {
   const repoPath = await getOrcaRootPath();
   const git = simpleGit(repoPath);
+
   try {
-    const branchSummary = await git.branchLocal();
-    return branchSummary.all; // array di nomi branch
+    await git.fetch(); // aggiorna i riferimenti remoti
+    const branchSummary = await git.branch(['-a']); // -a mostra tutti i rami (locali + remoti)
+    return branchSummary.all; // array di nomi branch (es: 'remotes/origin/main', 'main', ecc.)
   } catch (err) {
     console.error('Git get branches failed:', err);
     throw err;
@@ -631,9 +633,27 @@ ipcMain.handle('get-pull-count', async () => {
 ipcMain.handle('pull', async () => {
   const repoPath = await getOrcaRootPath();
   const git = simpleGit(repoPath);
+
   try {
-    const pullResult = await git.pull();
+    // Ottieni il branch attuale
+    const status = await git.status();
+    const currentBranch = status.current;
+
+    // Verifica se ha un tracking remoto
+    const branchSummary = await git.branch(['-vv']);
+    const branchInfo = branchSummary.branches[currentBranch];
+    const isTracking = branchInfo && branchInfo.tracking;
+
+    if (!isTracking) {
+      // Se non c'è tracking, configurarlo
+      await git.push(['-u', 'origin', currentBranch]);
+    }
+
+    // Esegui il pull specificando remote e branch
+    await git.fetch();
+    const pullResult = await git.pull('origin', currentBranch);
     return pullResult;
+
   } catch (err) {
     console.error('Git pull failed:', err);
     throw err;
@@ -672,6 +692,7 @@ ipcMain.handle('get-changed-files', async () => {
     const status = await git.status();
     const changedFiles = [
       ...status.modified,
+      ...status.not_added,
       ...status.created,
       ...status.deleted,
       ...status.renamed.map(f => f.to)
@@ -699,12 +720,65 @@ ipcMain.handle('read-file', async (event, filePath) => {
 ipcMain.handle('commit', async (event, message) => {
   const repoPath = await getOrcaRootPath();
   const git = simpleGit(repoPath);
+
   try {
+    await git.fetch();
+
+    const status = await git.status();
+    const currentBranch = status.current;
+
+    // Verifica se esiste il tracking remoto
+    const branchSummary = await git.branch(['-vv']);
+    const branchInfo = branchSummary.branches[currentBranch];
+
+    const isTracking = branchInfo && branchInfo.tracking;
+
+    if (!isTracking) {
+      // Imposta il tracking se non esiste
+      console.log(`No upstream for '${currentBranch}', creating it on origin...`);
+      await git.push(['-u', 'origin', currentBranch]);
+    } else {
+      // Effettua il pull dal branch remoto
+      await git.pull('origin', currentBranch);
+    }
+
+    // Aggiungi tutti i file
     await git.add('.');
+
+    // Esegui il commit
     const commitResult = await git.commit(message);
+
+    // Pusha sul remoto
+    await git.push('origin', currentBranch);
+
     return commitResult;
+
   } catch (err) {
-    console.error('Git commit failed:', err);
+    console.error('Git full sync failed:', err);
+    throw err;
+  }
+});
+
+ipcMain.handle('restore-file', async (event, filePath) => {
+  const repoPath = await getOrcaRootPath();
+  const git = simpleGit(repoPath);
+  try {
+    await git.checkout([filePath]);
+    return { success: true };
+  } catch (err) {
+    console.error(`Git restore failed for file ${filePath}:`, err);
+    throw err;
+  }
+});
+
+ipcMain.handle('get-last-commit', async () => {
+  const repoPath = await getOrcaRootPath();
+  const git = simpleGit(repoPath);
+  try {
+    const log = await git.log({ maxCount: 1 });
+    return log.latest ? log.latest.hash.slice(0, 7) : null; // abbreviazione tipo 'abc1234'
+  } catch (err) {
+    console.error('Failed to get last commit:', err);
     throw err;
   }
 });

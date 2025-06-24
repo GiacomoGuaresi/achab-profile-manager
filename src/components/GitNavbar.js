@@ -31,7 +31,7 @@ const GitNavbar = ({
 }) => {
     const [dialogOpen, setDialogOpen] = useState(false);
     const [newBranchName, setNewBranchName] = useState('');
-    const [baseBranch, setBaseBranch] = useState('master');
+    const [baseBranch, setBaseBranch] = useState('main');
     const [error, setError] = useState('');
 
     const handleCreate = () => {
@@ -134,7 +134,7 @@ const GitNavbar = ({
                             value={baseBranch}
                             onChange={(e) => setBaseBranch(e.target.value)}
                         >
-                            <MenuItem value="master">master</MenuItem>
+                            <MenuItem value="main">main</MenuItem>
                             <MenuItem value={branch}>{branch}</MenuItem>
                         </Select>
                     </FormControl>

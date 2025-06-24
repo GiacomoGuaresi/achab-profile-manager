@@ -29,4 +29,6 @@ contextBridge.exposeInMainWorld('api', {
   getBranches: () => ipcRenderer.invoke('get-branches'),
   getCurrentBranch: () => ipcRenderer.invoke('get-current-branch'),
   getPullCount: () => ipcRenderer.invoke('get-pull-count'),
+  restoreFile: (filePath) => ipcRenderer.invoke('restore-file', filePath),
+  getLastCommit: () => ipcRenderer.invoke('get-last-commit'),
 });
