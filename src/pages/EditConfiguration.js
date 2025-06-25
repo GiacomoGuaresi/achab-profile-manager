@@ -11,6 +11,8 @@ import AddNewConfigKeyInput from '../components/AddNewConfigKeyInput';
 
 import { useNotification } from '../NotificationProvider';
 
+import definitionData from '../assets/definitions.json'; 
+
 const cleanString = (val) => {
   if (typeof val === 'string') return val.replace(/\n/g, '');
   return String(val);
@@ -36,6 +38,7 @@ const EditConfiguration = () => {
   const [firstConfig, setFirstConfig] = useState(null);
   const [editKey, setEditKey] = useState(null);
   const [editValue, setEditValue] = useState('');
+  const [editType, setEditType] = useState('');
   const [newKey, setNewKey] = useState('');
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -274,8 +277,12 @@ const EditConfiguration = () => {
 
   const openEditModal = useCallback((key) => {
     const currentVal = config[key]?.[0];
+    const definition = definitionData[key];
+    const type = definition?.type ?? "coString";
+
     setEditKey(key);
     setEditValue(currentVal ?? '');
+    setEditType(type) 
   }, [config]);
 
   const closeEditModal = useCallback(() => {
@@ -436,6 +443,7 @@ const EditConfiguration = () => {
       <EditConfigKeyValueModal
         editKey={editKey}
         editValue={editValue}
+        editType={editType}
         setEditValue={setEditValue}
         saveEditValue={saveEditValue}
         closeEditModal={closeEditModal}
