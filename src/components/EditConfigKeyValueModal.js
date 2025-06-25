@@ -46,7 +46,7 @@ const EditConfigKeyValueModal = ({
                         Cancel
                     </Button>
                     <Button variant="contained" onClick={saveEditValue}>
-                        Save
+                        Set
                     </Button>
                 </Box>
             </Box>
