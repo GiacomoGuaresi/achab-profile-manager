@@ -9,15 +9,12 @@ const EditConfigKeyValueModal = ({
     saveEditValue,
     deleteEditValue,
     closeEditModal,
-    coEnumOptions = [], // opzionale: lista opzioni per coEnum e coEnums
+    coEnumOptions = [],
 }) => {
-    // Stato interno per coFloatOrPercent toggle
     const [isPercent, setIsPercent] = useState(false);
 
-    // Helper per gestire lista di valori (array) o singolo valore
     const isListType = ['coPoints', 'coStrings', 'coInts', 'coBools', 'coEnums', 'coFloats', 'coPercents'].includes(editType);
 
-    // Parsing iniziale dell'editValue, supponiamo sia JSON se lista, stringa altrimenti
     let parsedValue;
     try {
         parsedValue = isListType ? JSON.parse(editValue || '[]') : editValue;
@@ -25,16 +22,16 @@ const EditConfigKeyValueModal = ({
         parsedValue = isListType ? [] : editValue;
     }
 
-    // Setter wrapper che converte in stringa se lista
+    const wrapAsString = (val) => (val !== undefined && val !== null ? String(val) : '');
+
     const updateValue = (newValue) => {
         if (isListType) {
-            setEditValue(JSON.stringify(newValue));
+            setEditValue(JSON.stringify(newValue.map(wrapAsString)));
         } else {
-            setEditValue(newValue);
+            setEditValue(wrapAsString(newValue));
         }
     };
 
-    // Render input singolo
     const renderSingleInput = () => {
         switch (editType) {
             case 'coString':
@@ -45,56 +42,30 @@ const EditConfigKeyValueModal = ({
                         fullWidth
                         multiline
                         minRows={3}
-                        value={parsedValue || ''}
+                        value={wrapAsString(parsedValue) || ''}
                         onChange={e => updateValue(e.target.value)}
                         variant="outlined"
                     />
                 );
             case 'coInt':
-                return (
-                    <TextField
-                        fullWidth
-                        type="number"
-                        value={parsedValue || ''}
-                        onChange={e => updateValue(parseInt(e.target.value) || 0)}
-                        variant="outlined"
-                    />
-                );
             case 'coFloat':
-                return (
-                    <TextField
-                        fullWidth
-                        type="number"
-                        inputProps={{ step: 'any' }}
-                        value={parsedValue || ''}
-                        onChange={e => updateValue(parseFloat(e.target.value) || 0)}
-                        variant="outlined"
-                    />
-                );
-            case 'coBool':
-                return (
-                    <FormControlLabel
-                        control={
-                            <Switch
-                                checked={!!parsedValue}
-                                onChange={e => updateValue(e.target.checked)}
-                            />
-                        }
-                        label={parsedValue ? 'True' : 'False'}
-                    />
-                );
             case 'coPercent':
                 return (
                     <TextField
                         fullWidth
                         type="number"
-                        inputProps={{ min: 0, max: 100 }}
-                        value={parsedValue || 0}
+                        inputProps={editType === 'coFloat' ? { step: 'any' } : editType === 'coPercent' ? { min: 0, max: 100 } : {}}
+                        value={parsedValue || ''}
                         onChange={e => {
-                            let val = parseInt(e.target.value);
-                            if (val < 0) val = 0;
-                            if (val > 100) val = 100;
-                            updateValue(val);
+                            let val = e.target.value;
+                            if (editType === 'coPercent') {
+                                let intVal = parseInt(val);
+                                if (intVal < 0) intVal = 0;
+                                if (intVal > 100) intVal = 100;
+                                updateValue(intVal);
+                            } else {
+                                updateValue(val);
+                            }
                         }}
                         variant="outlined"
                     />
@@ -107,7 +78,7 @@ const EditConfigKeyValueModal = ({
                             type="number"
                             inputProps={{ step: 'any', min: 0 }}
                             value={parsedValue || ''}
-                            onChange={e => updateValue(parseFloat(e.target.value) || 0)}
+                            onChange={e => updateValue(e.target.value)}
                             variant="outlined"
                         />
                         <FormControlLabel
@@ -122,11 +93,23 @@ const EditConfigKeyValueModal = ({
                         />
                     </>
                 );
+            case 'coBool':
+                return (
+                    <FormControlLabel
+                        control={
+                            <Switch
+                                checked={parsedValue === "1"}
+                                onChange={e => updateValue(e.target.checked ? "1" : "0")}
+                            />
+                        }
+                        label={parsedValue === "1" ? 'True' : 'False'}
+                    />
+                );
             case 'coEnum':
                 return (
                     <Select
                         fullWidth
-                        value={parsedValue || ''}
+                        value={wrapAsString(parsedValue) || ''}
                         onChange={e => updateValue(e.target.value)}
                     >
                         {coEnumOptions.map(opt => (
@@ -140,7 +123,7 @@ const EditConfigKeyValueModal = ({
                         fullWidth
                         multiline
                         minRows={3}
-                        value={parsedValue || ''}
+                        value={wrapAsString(parsedValue) || ''}
                         onChange={e => updateValue(e.target.value)}
                         variant="outlined"
                     />
@@ -148,22 +131,23 @@ const EditConfigKeyValueModal = ({
         }
     };
 
-    // Render input lista (array)
     const renderListInput = () => {
         const list = Array.isArray(parsedValue) ? parsedValue : [];
+
         const updateItem = (index, value) => {
             const newList = [...list];
-            newList[index] = value;
+            newList[index] = wrapAsString(value);
             updateValue(newList);
         };
+
         const addItem = () => {
-            let defaultValue;
-            if (['coBools'].includes(editType)) defaultValue = false;
-            else if (['coInts', 'coPercents'].includes(editType)) defaultValue = 0;
-            else if (['coFloats'].includes(editType)) defaultValue = 0.0;
-            else defaultValue = '';
+            let defaultValue = '';
+            if (editType === 'coBools') defaultValue = "0";
+            else if (['coInts', 'coPercents'].includes(editType)) defaultValue = "0";
+            else if (editType === 'coFloats') defaultValue = "0.0";
             updateValue([...list, defaultValue]);
         };
+
         const removeItem = (index) => {
             const newList = [...list];
             newList.splice(index, 1);
@@ -179,8 +163,8 @@ const EditConfigKeyValueModal = ({
                                 case 'coBools':
                                     return (
                                         <Switch
-                                            checked={!!item}
-                                            onChange={e => updateItem(i, e.target.checked)}
+                                            checked={item === "1"}
+                                            onChange={e => updateItem(i, e.target.checked ? "1" : "0")}
                                         />
                                     );
                                 case 'coInts':
@@ -207,11 +191,11 @@ const EditConfigKeyValueModal = ({
                                             type="number"
                                             inputProps={{ step: 'any' }}
                                             value={item}
-                                            onChange={e => updateItem(i, parseFloat(e.target.value) || 0)}
+                                            onChange={e => updateItem(i, e.target.value)}
                                             size="small"
                                         />
                                     );
-                                default: // coPoints, coStrings, coEnums
+                                default:
                                     return (
                                         <TextField
                                             value={item}
@@ -257,16 +241,10 @@ const EditConfigKeyValueModal = ({
                 {isListType ? renderListInput() : renderSingleInput()}
 
                 <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Button color="error" onClick={deleteEditValue}>
-                        Delete
-                    </Button>
+                    <Button color="error" onClick={deleteEditValue}>Delete</Button>
                     <Box sx={{ display: 'flex', gap: 1 }}>
-                        <Button variant="outlined" onClick={closeEditModal}>
-                            Cancel
-                        </Button>
-                        <Button variant="contained" onClick={saveEditValue}>
-                            Set
-                        </Button>
+                        <Button variant="outlined" onClick={closeEditModal}>Cancel</Button>
+                        <Button variant="contained" onClick={saveEditValue}>Set</Button>
                     </Box>
                 </Box>
             </Box>
