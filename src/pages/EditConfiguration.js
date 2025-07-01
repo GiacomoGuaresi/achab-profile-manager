@@ -11,6 +11,8 @@ import AddNewConfigKeyInput from '../components/AddNewConfigKeyInput';
 
 import { useNotification } from '../NotificationProvider';
 
+import definitionData from '../assets/definitions.json';
+
 const cleanString = (val) => {
   if (typeof val === 'string') return val.replace(/\n/g, '');
   return String(val);
@@ -36,6 +38,7 @@ const EditConfiguration = () => {
   const [firstConfig, setFirstConfig] = useState(null);
   const [editKey, setEditKey] = useState(null);
   const [editValue, setEditValue] = useState('');
+  const [editType, setEditType] = useState('');
   const [newKey, setNewKey] = useState('');
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -115,29 +118,39 @@ const EditConfiguration = () => {
   }, []);
 
   const addValue = useCallback((key) => {
-    const emptyValue = '""'; // o '{}', o altro valore JSON vuoto
+    // Ottieni il valore di default da definitions.json, se disponibile
+    let defaultValueRaw = definitionData[key]?.default_value ?? '""';
 
-    const parsedEmptyValue = JSON.parse(emptyValue);
+    // Prova a fare il parsing del valore default come JSON
+    let parsedDefaultValue;
+    try {
+      parsedDefaultValue = JSON.parse(defaultValueRaw);
+    } catch (error) {
+      // In caso di errore di parsing, usa una stringa vuota come fallback
+      parsedDefaultValue = "";
+    }
 
-    // Aggiorna draftCopyRef aggiungendo il nuovo valore vuoto in cima all'array per la chiave
+    // Aggiorna draftCopyRef
     draftCopyRef.current = {
       ...draftCopyRef.current,
-      [key]: draftCopyRef.current[key] ? [parsedEmptyValue, ...[].concat(draftCopyRef.current[key])] : [parsedEmptyValue]
+      [key]: draftCopyRef.current[key]
+        ? [parsedDefaultValue, ...[].concat(draftCopyRef.current[key])]
+        : [parsedDefaultValue]
     };
 
-    // Aggiorna firstConfig impostando il valore vuoto come nuovo valore "principale" per la chiave
+    // Aggiorna firstConfig
     setFirstConfig(prev => ({
       ...prev,
-      [key]: parsedEmptyValue,
+      [key]: parsedDefaultValue,
     }));
 
-    // Aggiorna lo stato config aggiungendo il nuovo valore vuoto in cima alla lista valori
+    // Aggiorna config (salva come stringa JSON)
     setConfig(prevConfig => {
       const newConfig = { ...prevConfig };
       if (newConfig[key]) {
-        newConfig[key] = [emptyValue, ...newConfig[key]];
+        newConfig[key] = [defaultValueRaw, ...newConfig[key]];
       } else {
-        newConfig[key] = [emptyValue];
+        newConfig[key] = [defaultValueRaw];
       }
       return newConfig;
     });
@@ -145,7 +158,6 @@ const EditConfiguration = () => {
     // Segna la chiave come modificata
     setChangedKeys(prev => ({ ...prev, [key]: true }));
   }, []);
-
 
   const save = () => {
     window.api.saveConfig(nodeInfo.data.filePath, draftCopyRef.current)
@@ -274,8 +286,12 @@ const EditConfiguration = () => {
 
   const openEditModal = useCallback((key) => {
     const currentVal = config[key]?.[0];
+    const definition = definitionData[key];
+    const type = definition?.type ?? "coString";
+
     setEditKey(key);
     setEditValue(currentVal ?? '');
+    setEditType(type)
   }, [config]);
 
   const closeEditModal = useCallback(() => {
@@ -436,6 +452,7 @@ const EditConfiguration = () => {
       <EditConfigKeyValueModal
         editKey={editKey}
         editValue={editValue}
+        editType={editType}
         setEditValue={setEditValue}
         saveEditValue={saveEditValue}
         closeEditModal={closeEditModal}

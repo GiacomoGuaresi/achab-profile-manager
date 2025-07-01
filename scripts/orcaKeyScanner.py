@@ -2,181 +2,132 @@ import os
 import re
 import json
 
-def extract_cpp_definitions(folder_path):
-    """
-    Scansiona i file .cpp in una cartella specificata ed estrae le definizioni
-    secondo il pattern fornito.
 
-    Args:
-        folder_path (str): Il percorso della cartella da scansionare.
+def parse_cpp_file(file_path, filename):
+    with open(file_path, 'r', encoding='utf-8') as f:
+        content = f.read()
 
-    Returns:
-        dict: Un dizionario contenente tutte le definizioni estratte,
-              dove la chiave è il nome della definizione (es. "line_width")
-              e il valore è un altro dizionario con i dettagli della definizione.
-    """
-    
-    src_folder_path = os.path.join(folder_path, "src")
-    all_definitions = {}
+    results = {}
+    fields_found = set()
 
-    # Regex per trovare un blocco di definizione completo.
-    # Cattura la riga iniziale 'def = this->add("key", coType);'
-    # e tutto il contenuto successivo fino al prossimo blocco 'def = this->add('
-    # o alla fine del file.
-    definition_block_pattern = re.compile(
-        r'def\s*=\s*this->add\("([^"]+)",\s*co[A-Za-z]+(?:\|?\s*co[A-Za-z]+)*\);' # Inizio della riga di definizione (cattura la chiave)
-        r'(.*?)' # Cattura non avida di tutto il contenuto del blocco
-        r'(?=\s*def\s*=\s*this->add\(|\Z)', # Lookahead per la prossima definizione o la fine della stringa
-        re.DOTALL # Permette a '.' di includere i newline
+    # Pattern principale per blocchi this->add(...)
+    pattern = r'def\s*=\s*this->add\(\s*"([^"]+)",\s*([^)]+)\);\s*((?:\s*def->[^;]+;\s*)+)'
+    matches = re.findall(pattern, content, re.MULTILINE)
+
+    if matches:
+        print(f"📄 Trovato {len(matches)} blocco(i) in {filename}")
+
+    for name, type_value, block in matches:
+        entry = {
+            "file": filename,
+            "type": type_value.strip()
+        }
+
+        # Pattern 1: assegnazioni classiche: def->chiave = valore;
+        attr_pattern = r'def->(\w+)\s*=\s*(.+?);'
+        for attr, val in re.findall(attr_pattern, block):
+            entry[attr] = val.strip()
+            fields_found.add(attr)
+
+        # Pattern 2: chiamate a funzione tipo: def->set_default_value(...)
+        call_pattern = r'def->set_default_value\s*\((.+?)\);'
+        call_match = re.search(call_pattern, block)
+        if call_match:
+            entry["default_value"] = call_match.group(1).strip()
+            fields_found.add("default_value")
+
+        results[name] = entry
+
+    # Estrazione delle opzioni da classi TabXXX
+    groups = extract_preset_option_groups(content)
+
+    return results, fields_found, groups
+
+
+def extract_preset_option_groups(content):
+    # Pattern per catturare la dichiarazione del vettore e il suo contenuto fino alla chiusura '};'
+    pattern = re.compile(
+        r'static\s+std::vector<std::string>\s+(\w+)\s*{([^}]+)};',
+        re.MULTILINE | re.DOTALL
     )
 
-    # Regex per estrarre i singoli campi all'interno di un blocco di definizione
-    label_pattern = re.compile(r'label\s*=\s*L\("(?P<value>[^"]*)"\);')
-    
-    # Regex per 'tooltip': cattura il contenuto all'interno di L("string1" "string2") o L("string1").
-    # È progettata per catturare anche stringhe concatenate tra virgolette.
-    tooltip_pattern = re.compile(r'tooltip\s*=\s*L\((?P<value>"(?:[^"\\]|\\.)*?"(?:(?:\s*"(?:[^"\\]|\\.)*?")*))\);')
-    
-    sidetext_pattern = re.compile(r'sidetext\s*=\s*L\("(?P<value>[^"]*)"\);')
-    
-    # Regex per valori numerici (min, max, max_literal), accetta interi, float e 'f' per i float
-    numeric_pattern_template = r'{field_name}\s*=\s*(?P<value>-?\d+(?:\.\d+)?f?);'
-    min_pattern = re.compile(numeric_pattern_template.format(field_name="min"))
-    max_pattern = re.compile(numeric_pattern_template.format(field_name="max"))
-    max_literal_pattern = re.compile(numeric_pattern_template.format(field_name="max_literal"))
-        
-    # Cattura l'intero argomento della funzione set_default_value
-    set_default_value_pattern = re.compile(r'set_default_value\((?P<value>.*?)\);')
+    groups = {}
 
-    # Elenco dei pattern da cercare, in ordine
-    field_patterns = [
-        ("label", label_pattern),
-        ("tooltip", tooltip_pattern),
-        ("sidetext", sidetext_pattern),
-        ("min", min_pattern),
-        ("max", max_pattern),
-        ("max_literal", max_literal_pattern),
-        ("set_default_value", set_default_value_pattern)
-    ]
+    for match in pattern.finditer(content):
+        group_name = match.group(1)
+        body = match.group(2)
 
-    # Attraversa tutte le cartelle e i file nel percorso specificato
-    for root, _, files in os.walk(src_folder_path):
-        for file_name in files:
-            # Controlla se il file è un file C++
-            if file_name.endswith(".cpp"):
-                file_path = os.path.join(root, file_name)
-                # print(f"Elaborazione: {file_path}") # Stampa il file in elaborazione
+        # Estrai tutte le stringhe tra virgolette nel body
+        options = re.findall(r'"([^"]+)"', body)
 
-                try:
-                    # Leggi il contenuto del file
-                    with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                        content = f.read()
+        groups[group_name] = options
+        print(f"📦 Gruppo '{group_name}' -> {len(options)} opzioni")
 
-                    # Trova tutti i blocchi di definizione nel contenuto del file
-                    matches = definition_block_pattern.finditer(content)
+    return groups
 
-                    for match in matches:
-                        key = match.group(1) # Cattura il nome della definizione (es. "line_width")
-                        block_content = match.group(2) # Cattura il contenuto del blocco (label, tooltip, ecc.)
-                        
-                        definition_data = {"file": file_path} # Includi il percorso del file sorgente
 
-                        # Estrai i campi per la definizione corrente
-                        for field_name, pattern in field_patterns:
-                            field_match = pattern.search(block_content)
-                            if field_match:
-                                value = field_match.group("value").strip()
-                                # Gestione speciale per i tooltip con stringhe concatenate
-                                if field_name == "tooltip":
-                                    # Rimuovi le virgolette e gli spazi intermedi tra le stringhe concatenate
-                                    value = re.sub(r'"\s*"', '', value)
-                                    # Rimuovi le virgolette iniziali e finali
-                                    value = value.strip('"')
-                                    # Gestisci i caratteri di escape per virgolette e newline
-                                    value = value.replace('\\"', '"')
-                                    value = value.replace('\\n', '\n')
-                                    definition_data[field_name] = value
-                                # Conversione dei valori numerici in int/float
-                                elif field_name in ["min", "max", "max_literal"]:
-                                    try:
-                                        if '.' in value or 'f' in value:
-                                            # Se contiene '.' o 'f', prova a convertirlo in float
-                                            definition_data[field_name] = float(value.replace('f', ''))
-                                        else:
-                                            # Altrimenti, prova a convertirlo in intero
-                                            definition_data[field_name] = int(value)
-                                    except ValueError:
-                                        # Se la conversione fallisce, mantieni il valore come stringa
-                                        definition_data[field_name] = value
-                                else:
-                                    definition_data[field_name] = value
-                        
-                        # Aggiungi la definizione al dizionario principale
-                        all_definitions[key] = definition_data
+def scan_folder(folder):
+    all_data = {}
+    all_fields = set()
+    all_groups = {}
+    total_defs = 0
 
-                except Exception as e:
-                    print(f"Errore durante l'elaborazione di {file_path}: {e}")
-    return all_definitions
+    print(f"🔍 Inizio scansione cartella: {folder}\n")
 
-def extract_json_keys(folder_path, existing_definitions):
-    """
-    Scansiona i file .json in una cartella specificata (e sottocartelle)
-    ed elenca le loro chiavi nel dizionario delle definizioni, se non già presenti.
+    for root, _, files in os.walk(folder):
+        for file in files:
+            if file.endswith(('.cpp', '.hpp', '.cxx', '.h')):
+                path = os.path.join(root, file)
+                # print(f"➡️  Analizzo file: {file}")
+                file_data, file_fields, group_data = parse_cpp_file(path, file)
+                all_data.update(file_data)
+                all_fields.update(file_fields)
+                all_groups.update(group_data)
+                total_defs += len(file_data)
 
-    Args:
-        folder_path (str): Il percorso della cartella da scansionare per i file JSON.
-        existing_definitions (dict): Il dizionario delle definizioni esistenti.
+    print(f"\n✅ Scansione completata.")
+    print(f"🔢 Totale definizioni trovate: {total_defs}")
+    print(f"📋 Campi unici trovati: {len(all_fields)}\n")
 
-    Returns:
-        dict: Il dizionario aggiornato con le chiavi dei file JSON.
-    """
-    json_definitions = existing_definitions.copy()
-    profiles_folder_path = os.path.join(folder_path, "resources", "profiles")
+    return all_data, sorted(all_fields), all_groups
 
-    if not os.path.isdir(profiles_folder_path):
-        print(f"Avviso: La cartella '{profiles_folder_path}' non esiste. Nessun file JSON da elaborare.")
-        return json_definitions
 
-    for root, _, files in os.walk(profiles_folder_path):
-        for file_name in files:
-            if file_name.endswith(".json"):
-                file_path = os.path.join(root, file_name)
-                try:
-                    with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                        data = json.load(f)
-                        for key in data.keys():
-                            if key not in json_definitions:
-                                json_definitions[key] = {
-                                    "file": file_path,
-                                }
-                except json.JSONDecodeError as e:
-                    print(f"Errore di decodifica JSON in '{file_path}': {e}")
-                except Exception as e:
-                    print(f"Errore durante l'elaborazione di {file_path}: {e}")
-    return json_definitions
+def merge_data_with_groups(data, groups):
+    # Mappa opzione -> gruppo
+    option_to_group = {}
+    for group_name, options in groups.items():
+        for option in options:
+            option_to_group[option] = group_name
 
-# Punto di ingresso principale dello script
+    # Aggiungi il campo "group" se l'opzione è in un gruppo
+    for option_name, option_data in data.items():
+        if option_name in option_to_group:
+            option_data["group"] = option_to_group[option_name]
+        else:
+            option_data["group"] = "N.A."
+
+    return data
+
+
+def main():
+    folder = "C:\\Users\\guare\\source\\gingerRepos\\OrcaSlicer\\src"
+
+    data, fields, groups = scan_folder(folder)
+
+    # Merge tra data e groups
+    merged_data = merge_data_with_groups(data, groups)
+
+    with open("data.json", "w", encoding='utf-8') as f:
+        json.dump(merged_data, f, indent=4, ensure_ascii=False)
+
+    with open("fields.json", "w", encoding='utf-8') as f:
+        json.dump(fields, f, indent=4, ensure_ascii=False)
+
+    with open("groups.json", "w", encoding='utf-8') as f:
+        json.dump(groups, f, indent=4, ensure_ascii=False)
+
+    print("💾 File salvati: data.json, fields.json, groups.json")
+
+
 if __name__ == "__main__":
-    # Chiedi all'utente il percorso della cartella da scansionare
-    folder_to_scan = input("Inserisci il percorso della cartella contenente i file C++ (e la radice per /resources/profiles): ")
-
-    # Verifica se il percorso inserito è una directory valida
-    if not os.path.isdir(folder_to_scan):
-        print(f"Errore: Il percorso '{folder_to_scan}' non è una directory valida.")
-    else:
-        # Estrai le definizioni dai file CPP
-        definitions = extract_cpp_definitions(folder_to_scan)
-        print(f"Trovate {len(definitions)} definizioni da file C++.")
-
-        # Estrai le chiavi dai file JSON e aggiungile alle definizioni esistenti
-        definitions = extract_json_keys(folder_to_scan, definitions)
-        print(f"Trovate un totale di {len(definitions)} definizioni (incluse quelle da JSON).")
-
-        output_file_name = "../public/definitions.json"
-        try:
-            # Scrivi le definizioni estratte nel file JSON
-            with open(output_file_name, 'w', encoding='utf-8') as json_file:
-                json.dump(definitions, json_file, indent=4, ensure_ascii=False)
-            print(f"\nDefinizioni estratte con successo in '{output_file_name}'")
-        except Exception as e:
-            print(f"Errore durante la scrittura del file '{output_file_name}': {e}")
+    main()
